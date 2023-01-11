@@ -4,11 +4,6 @@
  * QR Method for
  *https://www.cs.cornell.edu/~bindel/class/cs6210-f12/notes/lec28.pdf
  *
- * Required Implementations in the Matrix class:
- *                                              - Matrix(row, col)
- *                                              - Matrix.rows()
- *                                              - Matrix.transpose()
- *                                              - Matrix::Identity(rows, cols)
  */
 
 /*
@@ -45,29 +40,29 @@ bool is_symmetric(const Eigen::MatrixBase<Derived>& aA, const double tol = 1e-14
 }
 
 
-template<class Derived, class Matrix>
-void create_householder(const Eigen::MatrixBase<Derived>& x, const int aN, Matrix& P) {
+template<class Derived, class Derived2>
+void create_householder(const Eigen::MatrixBase<Derived>& x, const int aN, const Eigen::MatrixBase<Derived2>& P) {
+  typedef typename Eigen::MatrixBase<Derived2> Matrix;
   Matrix u = x + signum(x(0,0)) * x.norm()
     * Matrix::Identity(x.rows(),1);
-  P = Matrix::Identity(aN,aN);                                                      // Increase Matrix with Identity
-  P(Eigen::lastN(u.rows()), Eigen::lastN(u.rows())) -=                              // Calculate the relevant block
+  const_cast<Eigen::MatrixBase<Derived>&>(P) = Matrix::Identity(aN,aN);                                                      // Increase Matrix with Identity
+  const_cast<Eigen::MatrixBase<Derived>&>(P)(Eigen::lastN(u.rows()), Eigen::lastN(u.rows())) -=                              // Calculate the relevant block
       2 * (u * u.transpose()) / u.squaredNorm();
   return;
 }
 
 
-// Current implementation requires Eigen Dense
-// Currently requires: Matrix.norm(), Indexing by Matrix(Eigen::lastN(n), i)
-template<class Matrix>
-Matrix hessenberg_transformation(Matrix& aA, const bool aIs_symmetric) {
+template<class Derived>
+Eigen::Matrix<typename Derived::Scalar, -1, -1> hessenberg_transformation(const Eigen::MatrixBase<Derived>& aA, const bool aIs_symmetric) {
+  typedef Eigen::Matrix<typename Derived::Scalar, -1, -1> Matrix;
   Matrix Q = Matrix::Identity(aA.rows(), aA.cols());                                    // Q is transformation Matrix
   Matrix P;                                                                             // P is Householder reflection
   for( int i = 0; i < aA.rows()-1; ++i) {
     create_householder(aA(Eigen::lastN(aA.rows()-i-1), i), aA.rows(), P);               // Calc Householder Matrix
-    aA = P.transpose() * aA * P;                                                        // Transformation Step
-    aA(Eigen::lastN(aA.rows()-i-2), i) = Matrix::Zero(aA.rows() - i - 2, 1);            // Set Round off errors to 0
+    const_cast<Eigen::MatrixBase<Derived>&>(aA) = P.transpose() * aA * P;                                                        // Transformation Step
+    const_cast<Eigen::MatrixBase<Derived>&>(aA)(Eigen::lastN(aA.rows()-i-2), i) = Matrix::Zero(aA.rows() - i - 2, 1);            // Set Round off errors to 0
     if( aIs_symmetric ) {
-      aA(i, Eigen::lastN(aA.rows()-i-2)) = Matrix::Zero(1, aA.rows() - i - 2);          // Restore symmetry
+      const_cast<Eigen::MatrixBase<Derived>&>(aA)(i, Eigen::lastN(aA.rows()-i-2)) = Matrix::Zero(1, aA.rows() - i - 2);          // Restore symmetry
     }
     Q = Q * P;                                                                          // Build the transformation Matrix
   }
@@ -168,7 +163,7 @@ std::vector<typename Eigen::MatrixBase<Derived>::Scalar> double_shift_parameter(
 
 template<class Derived>
 void householder_transformation(const Eigen::MatrixBase<Derived>& aA) {
-  typedef Eigen::MatrixXd Matrix;
+  typedef Eigen::Matrix<typename Derived::Scalar, -1, -1> Matrix;
   int n = aA.rows();
   Matrix P;                                                                         // Householder Matrix
   for( int i = 0; i < n-1; ++i) {
@@ -186,7 +181,6 @@ void explicit_double_shift_qr_step(const Eigen::MatrixBase<Derived>& aA) {
   int n = aA.rows();
   std::vector<typename Matrix::Scalar> shift = double_shift_parameter(aA(Eigen::lastN(2), Eigen::lastN(2)));
   Matrix M = aA * aA + shift.at(0) * aA + shift.at(1) * Matrix::Identity(n,n);
-  std::cout << "M" << M << std::endl;
   Matrix P;                                                                             // Householder Matrix
   create_householder(M(Eigen::all, 0), n, P);                  // Calc Householder Matrix
   const_cast<Eigen::MatrixBase<Derived>&>(aA) = P.transpose() * aA * P;                 // Transformation Step
@@ -219,17 +213,13 @@ template<class Derived>
 bool deflate_double(const Eigen::MatrixBase<Derived>& aA, int& aBegin, int& aEnd, const double aTol = 1e-14) {
   bool state = true;
   for( int i = aEnd; i > aBegin; --i ) {
-    //std::cout << i << std::endl;
-    //std::cout <<  state << (i - 1 > aBegin) << ((i-1 > aBegin) && (std::abs(aA(i-1, i-2)) < aTol * std::abs(aA(i-2, i-2) + aA(i-1, i-1))))  << std::endl;
     if( std::abs(aA(i, i-1)) < aTol * std::abs(aA(i, i) + aA(i-1, i-1)) ) {
-      std::cout << "Setting to 0" << std::endl;
       const_cast<Eigen::MatrixBase<Derived>&>(aA)(i, i-1) = 0;
       if( !state ) {
         aBegin = i;
         return false ;
       }
     } else if( state && (i - 1 > aBegin) && (std::abs(aA(i-1, i-2)) >= aTol * std::abs(aA(i-2, i-2) + aA(i-1, i-1))) ) {
-      std::cout << " element found" << std::endl;
       aEnd = i;
       --i;
       state = false;
@@ -271,7 +261,7 @@ calc_eigenvalues_from_schur(Eigen::MatrixBase<Derived>& aA, bool real_ev = false
 // A is Hessenberg
 template <class Derived, class data_type = typename Derived::Scalar> // Unclear yet how it should be passed
 std::vector<std::complex<data_type>>
-hessenberg_qr_iteration(Eigen::MatrixBase<Derived>& aA, const int aBegin, int aEnd, const bool aIs_symmetric, const double aTol = 1e-14) {
+hessenberg_qr_iteration(const Eigen::MatrixBase<Derived>& aA, const int aBegin, int aEnd, const bool aIs_symmetric, const double aTol = 1e-14) {
   typedef typename Eigen::Block<Derived, -1, -1, false> step_Matrix;
   int begin = aBegin;
   int end_of_while;
@@ -288,18 +278,11 @@ hessenberg_qr_iteration(Eigen::MatrixBase<Derived>& aA, const int aBegin, int aE
       deflate = &deflate_double<Derived>;
   }
 
-  std::cout << aA << std::endl;
   while( end_of_while < aEnd ) {
-    std::cout << "Before Step" << std::endl;
-    std::cout << aA << std::endl;
     if( deflate(aA, begin, aEnd, aTol)) {
-    //if(false) {
       aEnd = begin - 1;
       begin = aBegin;
     } else {
-      std::cout << "step" << std::endl;
-      std::cout << "current Block" << std::endl;
-      std::cout << aA(Eigen::seq(begin, aEnd), Eigen::seq(begin, aEnd)) << std::endl;
       step_func(aA(Eigen::seq(begin,aEnd), Eigen::seq(begin, aEnd)));
     }
   }
@@ -314,7 +297,7 @@ hessenberg_qr_iteration(Eigen::MatrixBase<Derived>& aA, const int aBegin, int aE
 // Function w/o aBegin and aEnd
 template <class Derived, class data_type = typename Derived::Scalar>
 std::vector<std::complex<data_type>>
-hessenberg_qr_iteration(Eigen::MatrixBase<Derived>& aA, const bool aIs_symmetric, const double aTol = 1e-14) {
+hessenberg_qr_iteration(const Eigen::MatrixBase<Derived>& aA, const bool aIs_symmetric, const double aTol = 1e-14) {
   return hessenberg_qr_iteration(aA, 0, aA.rows()-1, aIs_symmetric, aTol);
 }
 
@@ -334,12 +317,8 @@ typename std::enable_if<std::is_arithmetic<typename Derived::Scalar>::value, std
 implicit_shift_qr_method(const Eigen::MatrixBase<Derived>& aA) {
   typedef Eigen::Matrix<data_type, Eigen::Dynamic, Eigen::Dynamic> Matrix; // Maybe change this
   Matrix A = aA;
-  Matrix A2 = aA; // TODO remove
   Matrix P = hessenberg_transformation(A, true);
   std::vector<std::complex<data_type>> res = hessenberg_qr_iteration(A, true);
-  std::cout << "Non Symm" << std::endl;
-  hessenberg_transformation(A2, false);       // TODO remove
-  res = hessenberg_qr_iteration(A2, false); // TODO remove
   return res;
 }
 
@@ -347,11 +326,10 @@ implicit_shift_qr_method(const Eigen::MatrixBase<Derived>& aA) {
 template <typename Derived, class data_type = double> // First argument is Matrix type, second is type of the calculations
 typename std::enable_if<std::is_arithmetic<typename Derived::Scalar>::value, std::vector<std::complex<data_type>>>::type
 double_shift_qr_method(const Eigen::MatrixBase<Derived>& aA) {
-  std::vector<std::complex<data_type>> res(aA.rows());
   typedef Eigen::Matrix<data_type, Eigen::Dynamic, Eigen::Dynamic> Matrix; // Maybe change this
   Matrix A = aA;
   Matrix P = hessenberg_transformation(A, false);
-  res = hessenberg_qr_iteration(A, false);
+  std::vector<std::complex<data_type>> res = hessenberg_qr_iteration(A, false);
   return res;
 }
 
@@ -362,7 +340,6 @@ template <typename Derived, class data_type = typename std::enable_if<std::is_ar
 std::vector<std::complex<data_type>>
 //auto
 qr_method(const Eigen::MatrixBase<Derived>& aA) {
-  std::cout << "correct Method" << std::endl;
   const bool a_is_symmetric = is_symmetric(aA);  // Needs to be changed, or in the upper one
   if( a_is_symmetric ) return implicit_shift_qr_method<Derived, data_type>(aA);
   else return double_shift_qr_method<Derived, data_type>(aA);
