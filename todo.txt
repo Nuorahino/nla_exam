@@ -1,0 +1,9 @@
+Add deflation at the start
+
+Add complex implicit shift
+  The Givens Matrix needs an adjoint
+
+Eigen optimizations:
+  selfadjoint view
+  noalias
+  check when matrices are created
