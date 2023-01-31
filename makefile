@@ -1,19 +1,21 @@
 CC := g++
 
+BASEVERSION := 1
+
 INCL := -I ../helpfunctions
 
-DEBUG := -g -Wall -Wextra -Wfloat-equal -Wshadow -Wunreachable-code -fsanitize=address -fsanitize=undefined -fsanitize=pointer-compare -Wunused-but-set-variable
+DEBUG := -g -Wall -Wextra -Wfloat-equal -Wshadow -Wunreachable-code -fsanitize=address -fsanitize=undefined -fsanitize=pointer-compare -Wunused-but-set-variable -pedantic
 
-CFLAGS := $(INCL) -std=c++17 $(DEBUG)
+CFLAGS := $(INCL) -std=c++17 $(DEBUG) -DVERSION=$(BASEVERSION)
 
-cfiles :=
+cfiles := main.cc test.cc
 
-hfiles :=
+hfiles := test.hh qr.hh helpfunctions/helpfunctions.hh
 
 
-all: final test
+all: base test
 
-final:
+base: $(cfiles) $(hfiles)
 	$(CC) $(CFLAGS) $(cfiles) -o build/$@
 
 test:

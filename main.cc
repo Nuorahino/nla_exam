@@ -3,27 +3,27 @@
 
 #include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/Sparse>
+
 #include "qr.hh"
+#include "test.hh"
 
-void test_matrix(Eigen::MatrixXd& A) {
-  std::cout << A << std::endl;
+// Maybe use std::optional instead
+int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
+  std::string filename = getFileName();
 
-  Eigen::EigenSolver<Eigen::MatrixXd> es(A);
-  Eigen::VectorXd eigen_res = es.eigenvalues().real();
-  std::cout << "eigen: " << eigen_res << std::endl;
-  std::vector<std::complex<double>> qr_res = qr_method(A);
-  //qr_method(A);
-  std::cout << "qr: " << qr_res << std::endl;
-}
+  std::ofstream summaryFile("../testresults/summary/" + filename);
+  std::ofstream EigenvalueFile("../testresults/eigenvalues/" + filename);
+  printSummaryHeader(summaryFile);
+  printEigenvalueHeader(EigenvalueFile);
 
-int main(int argc, char** argv) {
-  std::cout << "Beginning of test" << std::endl;
-
-  Eigen::MatrixXd A = Eigen::MatrixXd::Random(8,8);
-  A = A + A.transpose().eval();
-  test_matrix(A);
-  Eigen::MatrixXd B = Eigen::MatrixXd::Random(8,8);
-  test_matrix(B);
+  int n = 50;
+  int seed = 28;
+  for( int i = 1; i < n; ++i ) {
+//    runTest<Eigen::MatrixXd>(summaryFile, EigenvalueFile, i, seed, true);
+//    runTest<Eigen::MatrixXd>(summaryFile, EigenvalueFile, i, seed, false);
+    runTest<Eigen::MatrixXcd>(summaryFile, EigenvalueFile, i, seed, true);
+//    runTest<Eigen::MatrixXcd>(summaryFile, EigenvalueFile, i, seed, false);
+  }
 
   return 1;
 }
