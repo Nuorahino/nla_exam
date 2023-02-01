@@ -15,37 +15,44 @@
 #include "helpfunctions/helpfunctions.hh"
 #include "qr.hh"
 
-void printSummaryHeader(std::ofstream& aFile) {
-  aFile << "version, size, hermitian, complex, seed, tol, runtime in s, min_error, max_error, avg_error" << std::endl;
+void PrintSummaryHeader(std::ofstream& a_file) {
+  a_file << "version, size, hermitian, complex, seed, tol, runtime in s,"
+         << "min_error, max_error, avg_error" << std::endl;
 }
 
-void printEigenvalueHeader(std::ofstream& aFile) {
-  aFile << "version, size, hermitian, complex, seed, tol, runtime in s, index, eigenvalue, error" << std::endl;
+void PrintEigenvalueHeader(std::ofstream& a_file) {
+  a_file << "version, size, hermitian, complex, seed, tol, runtime in s,"
+         << "index, eigenvalue, error" << std::endl;
 }
 
-void printSummary(std::ofstream& aFile, const std::string& aPrefix,
-    const std::vector<double>& aError) {
-  aFile << aPrefix << ","
-        << *std::min_element(aError.begin(), aError.end()) << ","
-        << *std::max_element(aError.begin(), aError.end()) << ","
-        << std::accumulate(aError.begin(), aError.end(), 0.0)/double(aError.size())
-        << std::endl;
+void PrintSummary(std::ofstream& a_file, const std::string& ak_prefix,
+    const std::vector<double>& ak_error) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnarrowing"
+  a_file << ak_prefix << ","
+         << *std::min_element(ak_error.begin(), ak_error.end()) << ","
+         << *std::max_element(ak_error.begin(), ak_error.end()) << ","
+         << std::accumulate(ak_error.begin(), ak_error.end(), 0.0)/
+              double{ak_error.size()}
+         << std::endl;
+#pragma GCC diagnostic pop
 }
 
-void printEigenvalues(std::ofstream& aFile, const std::string& aPrefix,
-                            const std::vector<std::complex<double>>& aEstimate,
-                            const std::vector<double>& aError) {
-  assert(aEstimate.size() == aError.size());
-  for(long unsigned int i = 0; i < aEstimate.size(); ++i) {
-    aFile << aPrefix << ","
-          << i << ","
-          << std::setprecision(std::numeric_limits<double>::max_digits10)
-          << aEstimate.at(i).real() << "+" << aEstimate.at(i).imag() << "i,"
-          << aError.at(i) << std::endl;
+void PrintEigenvalues(std::ofstream& a_file, const std::string& ak_prefix,
+                      const std::vector<std::complex<double>>& ak_estimate,
+                      const std::vector<double>& ak_error) {
+  assert(ak_estimate.size() == ak_error.size());
+  for(long unsigned int i = 0; i < ak_estimate.size(); ++i) {
+    a_file << ak_prefix << ","
+           << i << ","
+           << std::setprecision(std::numeric_limits<double>::max_digits10)
+           << ak_estimate.at(i).real() << "+"
+           << ak_estimate.at(i).imag() << "i,"
+           << ak_error.at(i) << std::endl;
   }
 }
 
-std::string getFileName() {
+std::string GetFileName() {
   std::stringstream res;
   auto now = std::chrono::system_clock::now();
   auto time = std::chrono::system_clock::to_time_t(now);
@@ -54,31 +61,31 @@ std::string getFileName() {
 }
 
 
-std::string getVariantString(const int aSize, const bool aIsHermitian,
-    const bool aIsComplex, const int aSeed, const double aTol,
-    const std::chrono::duration<double>& aRuntime) {
+std::string GetVariantString(const int ak_size, const bool ak_is_hermitian,
+    const bool ak_is_complex, const int ak_seed, const double ak_tol,
+    const std::chrono::duration<double>& ak_runtime) {
   std::stringstream res;
   res << VERSION << ","
-      << aSize << ","
-      << aIsHermitian << ","
-      << aIsComplex << ","
-      << aSeed << ","
-      << aTol << ","
-      << aRuntime.count();
+      << ak_size << ","
+      << ak_is_hermitian << ","
+      << ak_is_complex << ","
+      << ak_seed << ","
+      << ak_tol << ","
+      << ak_runtime.count();
 
   return res.str();
 }
 
 
-std::vector<double> getApproximationError(
-    const std::vector<std::complex<double>> aEstimate,
-    const std::vector<std::complex<double>> aExact) {
-  assert( aEstimate.size() == aExact.size());
+std::vector<double> GetApproximationError(
+    const std::vector<std::complex<double>>& ak_estimate,
+    const std::vector<std::complex<double>>& ak_exact) {
+  assert( ak_estimate.size() == ak_exact.size());
   std::vector<double> res;
-  res.reserve(aEstimate.size());
-  for( auto estimate : aEstimate) {
+  res.reserve(ak_estimate.size());
+  for( auto estimate : ak_estimate) {
     double min = std::numeric_limits<double>::max();
-    for( auto exact : aExact) {
+    for( auto exact : ak_exact) {
       double dist = std::abs(estimate - exact);
       if(dist < min) min = dist;
     }

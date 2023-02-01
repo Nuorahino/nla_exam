@@ -15,24 +15,57 @@
 #include <cassert>
 
 template<class T> inline constexpr
-std::enable_if_t<std::is_same<T , std::complex<typename T::value_type>>::value, bool>
-is_complex() {
+std::enable_if_t<std::is_same<T, std::complex<typename T::value_type>>::value,
+  bool> IsComplex() {
   return true;
 }
 
+
 template<class T> inline constexpr
 std::enable_if_t<std::is_arithmetic<T>::value, bool>
-is_complex() {
+IsComplex() {
   return false;
 }
 
+
+/* Determine if the given Matrix is hermitian
+ * Parameter:
+ * - ak_matrix: Matrix
+ * Return: 'true', if ak_matrix is hermitian, 'false' else
+ */
+template <class Derived>
+std::enable_if_t<!IsComplex<typename Derived::Scalar>(), bool>
+IsHermitian(const Eigen::MatrixBase<Derived> &ak_matrix,
+                  const double ak_tol = 1e-14) {
+  for (int i = 0; i < ak_matrix.rows(); ++i) {
+    for (int ii = 0; ii < ak_matrix.rows(); ++ii) {
+      if (std::abs(ak_matrix(i, ii) - ak_matrix(ii, i)) >= ak_tol)
+        return false;                                                             // The Matrix is not symmetric
+    }
+  }
+  return true;
+}
+
+template <class Derived>
+std::enable_if_t<IsComplex<typename Derived::Scalar>(), bool>
+IsHermitian(const Eigen::MatrixBase<Derived> &ak_matrix,
+                  const double ak_tol = 1e-14) {
+  for (int i = 0; i < ak_matrix.rows(); ++i) {
+    for (int ii = 0; ii < ak_matrix.rows(); ++ii) {
+      if (std::abs(ak_matrix(i, ii) - std::conj(ak_matrix(ii, i))) >= ak_tol)
+        return false;                                                             // The Matrix is not symmetric
+    }
+  }
+  return true;
+}
+
+
 template<class T>
-struct has_lesser {
+struct HasLesser{
   template<class U>
   static auto test(U*) -> decltype(std::declval<U>() < std::declval<U>());
   template<typename, typename>
   static auto test(...) -> std::false_type;
-
 
   template<class data>
   static constexpr bool check(){
@@ -40,37 +73,21 @@ struct has_lesser {
   }
 };
 
- template <typename T> inline constexpr
- double signum(const T x, std::false_type) {
-     return T{0} <= x;
- }
-
- template <typename T> inline constexpr
- double signum(const T x, std::true_type) {
-     return (T{0} <= x) - (x < T{0});
- }
-
- template <typename T> inline constexpr
- double signum(const T x) {
-     return signum(x, std::is_signed<T>());
- }
-
- template <typename T> inline constexpr
- double signum(const std::complex<T> x) {
-     return signum(x.real(), std::is_signed<T>());
- }
 
 template<class T> inline
-std::enable_if_t<has_lesser<T>::check(), bool>
-lesser_ev(const T& c1, const T& c2) {
+std::enable_if_t<HasLesser<T>::check(), bool>
+LesserEv(const T& c1, const T& c2) {
   return c1 < c2;
 }
 
+
 template<class T> inline
-bool lesser_ev(const std::complex<T>& c1, const std::complex<T>& c2, const double aTol = 1e-4) {
-  if ((std::real(c1) - std::real(c2)) < - aTol) {
+bool LesserEv(const std::complex<T>& ak_c1, const std::complex<T>& ak_c2,
+    const double ak_tol = 1e-4) {
+  if ((std::real(ak_c1) - std::real(ak_c2)) < - ak_tol) {
     return true;
-  } else if (std::abs(std::real(c1) - std::real(c2)) <= aTol && std::imag(c1) < std::imag(c2)) {
+  } else if (std::abs(std::real(ak_c1) - std::real(ak_c2)) <= ak_tol &&
+      std::imag(ak_c1) < std::imag(ak_c2)) {
     return true;
   } else {
     return false;
@@ -80,191 +97,207 @@ bool lesser_ev(const std::complex<T>& c1, const std::complex<T>& c2, const doubl
 
 // Write an Eigen Matrix to and From CSV
 template<typename Derived> inline
-void saveData(const std::string& fileName, const Eigen::MatrixBase<Derived>&  matrix)
+void saveData(const std::string& ak_filename,
+    const Eigen::MatrixBase<Derived>& ak_mat)
 {
-	const static Eigen::IOFormat CSVFormat(Eigen::FullPrecision, Eigen::DontAlignCols, ", ", "\n");
-  std::ofstream file(fileName);
+	const static Eigen::IOFormat CSVFormat(Eigen::FullPrecision,
+      Eigen::DontAlignCols, ", ", "\n");
+  std::ofstream file(ak_filename);
 	if (file.is_open())
 	{
-		file << matrix.format(CSVFormat);
+		file << ak_mat.format(CSVFormat);
 		file.close();
 	}
 }
 
-template<typename Matrix>
-Matrix openData(const std::string& fileToOpen)
+
+template<typename MatrixType>
+MatrixType openData(const std::string& ak_file_to_open)
 {
-  std::vector<double> matrixEntries;
-  std::ifstream DataFile(fileToOpen);
-  std::string matrixRowString;
-  std::string matrixEntry;
+  std::vector<double> entries;
+  std::ifstream DataFile(ak_file_to_open);
+  std::string row_string;
+  std::string entry;
 	int number_of_rows = 0;
 
-	while (std::getline(DataFile, matrixRowString)) // Read the file in rowwise
-	{
-    std::stringstream matrixRowStringStream(matrixRowString); //convert to stream
-
-		while (std::getline(matrixRowStringStream, matrixEntry, ',')) // split of the entries
-		{
-			matrixEntries.push_back(stod(matrixEntry));   // convert string to double
+	while (std::getline(DataFile, row_string)) {
+    std::stringstream matrixRowStringStream(row_string);                            //convert to stringstream
+		while (std::getline(matrixRowStringStream, entry, ',')) {                       // Split the entries
+			entries.push_back(stod(entry));
 		}
-
-		++number_of_rows; //update the column numbers
+		++number_of_rows;
 	}
-  if constexpr(Matrix::IsRowMajor) {
-    return Eigen::Map<Matrix, 0, Eigen::InnerStride<1>>(matrixEntries.data(), number_of_rows, matrixEntries.size() / number_of_rows);
+  if constexpr(MatrixType::IsRowMajor) {
+    return Eigen::Map<MatrixType, 0, Eigen::InnerStride<1>>(entries.data(),
+        number_of_rows, entries.size() / number_of_rows);
   } else {
-    return Eigen::Map<Matrix, 0, Eigen::OuterStride<1>>(matrixEntries.data(), number_of_rows, matrixEntries.size() / number_of_rows);
+    return Eigen::Map<MatrixType, 0, Eigen::OuterStride<1>>(entries.data(),
+        number_of_rows, entries.size() / number_of_rows);
   }
 }
+
 
 template<class C>
-std::ostream & operator<<(std::ostream& out, const std::vector<C>& v)
+std::ostream & operator<<(std::ostream& a_out, const std::vector<C>& ak_v)
 {
-  out << "{";
-  size_t last = v.size() - 1;
-  for(size_t i = 0; i < v.size(); ++i) {
-    out << v[i];
-    if (i != last)
-      out << ", ";
+  a_out << "{";
+  for(auto iter = ak_v.begin(); iter != ak_v.end(); ++iter) {
+    a_out << *iter;
+    if(iter +1 != ak_v.begin()) {
+      a_out << ",";
+    }
   }
-  out << "}";
-  return out;
+  a_out << "}";
+  return a_out;
 }
 
-// Function for converting Eigen to std Vector
+
 template<typename Derived>
-std::vector<typename Derived::value_type> convertToVec(const Eigen::EigenBase<Derived>& aV) {
+std::vector<typename Derived::value_type>
+ConvertToVec(const Eigen::EigenBase<Derived>& ak_v) {
+  typedef Eigen::Vector<typename Derived::value_type, -1> VectorType;
   std::vector<typename Derived::value_type> v2;
-  typedef Eigen::Vector<typename Derived::value_type, -1> Vec;
-  v2.resize(aV.size());
-  Vec::Map(&v2[0], aV.size()) = aV;
+  v2.resize(ak_v.size());
+  VectorType::Map(&v2[0], ak_v.size()) = ak_v;
   return v2;
 }
 
+
 // Creating Random Matrices
-template<typename Matrix>
-Matrix CreateUnitaryMatrix(const int aN,
-    const int aSeed = std::time(nullptr)) {
-  std::srand(aSeed);
-  Matrix A(aN, aN);
+template<typename MatrixType>
+MatrixType CreateUnitaryMatrix(const int ak_size,
+    const int ak_seed = std::time(nullptr)) {
+  std::srand(ak_seed);
+  MatrixType A(ak_size, ak_size);
   A.setRandom();
-  Eigen::HouseholderQR<Matrix> qr(A);
+  Eigen::HouseholderQR<MatrixType> qr(A);
   return qr.householderQ();
 }
 
 
-template<typename Matrix>
-Matrix CreateStdRandom(const int aN, const int aSeed = std::time(nullptr)) {
-  std::srand(aSeed);
-  Matrix A(aN, aN);
-  for (int i = 0; i < aN; ++i) {
-    for (int j = 0; j < aN; ++j) {
-      int x = (std::rand() % 200) - 100;
-      A(i, j) = x;
+template<typename MatrixType>
+MatrixType CreateStdRandom(const int ak_size,
+    const int ak_seed = std::time(nullptr)) {
+  std::srand(ak_seed);
+  MatrixType A(ak_size, ak_size);
+  for( auto& entry : A.reshaped()) {
+      entry = (std::rand() % 200) - 100;
+  }
+  return A;
+}
+
+
+template<typename MatrixType>
+MatrixType CreateStdRandomTridiagonal(const int ak_size,
+                                const int ak_seed = std::time(nullptr)) {
+  std::srand(ak_seed);
+  MatrixType A = MatrixType::Zero(ak_size, ak_size);
+  for (int i = 0; i < ak_size; ++i) {
+    for (int j = i; j < ak_size; ++j) {
+      A(i, j) = (std::rand() % 200) - 100;
     }
   }
   return A;
 }
 
-template<typename Matrix>
-Matrix CreateStdRandomTridiagonal(const int aN,
-                                const int aSeed = std::time(nullptr)) {
-  std::srand(aSeed);
-  Matrix A = Matrix::Zero(aN, aN);
-  for (int i = 0; i < aN; ++i) {
-    for (int j = i; j < aN; ++j) {
-      int x = (std::rand() % 200) - 100;
-      A(i, j) = x;
-    }
-  }
-  return A;
-}
 
-template<typename Matrix>
-Matrix CreateStdRandomDiagonal(const int aN,
-                                const int aSeed = std::time(nullptr)) {
-  std::srand(aSeed);
-  Matrix A = Matrix::Zero(aN, aN) ;
-  for (int i = 0; i < aN; ++i) {
+template<typename MatrixType>
+MatrixType CreateStdRandomDiagonal(const int ak_size,
+                                const int ak_seed = std::time(nullptr)) {
+  std::srand(ak_seed);
+  MatrixType A = MatrixType::Zero(ak_size, ak_size) ;
+  for (int i = 0; i < ak_size; ++i) {
       int x = (std::rand() % 200) - 100;
     A(i, i) = x;
   }
   return A;
 }
 
-template<typename Matrix>
-Matrix CreateStdRandomSchur(const int aN,
-                                const int aSeed = std::time(nullptr)) {
-  std::srand(aSeed);
-  Matrix A = CreateStdRandomTridiagonal<Matrix>(aN, std::rand());
-  for(int i = 0; i < aN-1; i+= 2) {
-    A(Eigen::seqN(i, 2), Eigen::seqN(i, 2)) = CreateStdRandom<Matrix>(2, std::rand());
+
+template<typename MatrixType>
+MatrixType CreateStdRandomSchur(const int ak_size,
+                                const int ak_seed = std::time(nullptr)) {
+  std::srand(ak_seed);
+  MatrixType A = CreateStdRandomTridiagonal<MatrixType>(ak_size, std::rand());
+  for(int i = 0; i < ak_size-1; i+= 2) {
+    A(Eigen::seqN(i, 2), Eigen::seqN(i, 2)) = CreateStdRandom<MatrixType>(2,
+        std::rand());
   }
   return A;
 }
 
 
-template<typename Matrix>
-Matrix CreateRandomDiagonal(const int aN,
-                                     const int aSeed = std::time(nullptr)) {
-  std::srand(aSeed);
-  Matrix A = Matrix::Zero(aN, aN);
-  Matrix diag = Matrix::Random(aN);
+template<typename MatrixType>
+MatrixType CreateRandomDiagonal(const int ak_size,
+                                     const int ak_seed = std::time(nullptr)) {
+  std::srand(ak_seed);
+  MatrixType A = MatrixType::Zero(ak_size, ak_size);
+  MatrixType diag = MatrixType::Random(ak_size);
   A.diagonal() = diag;
   return A;
 }
 
-template <class Mat>
-Mat CreateLaplaceMatrix(int n) {
+
+template <class MatrixType>
+MatrixType CreateLaplaceMatrix(const int ak_size) {
   typedef Eigen::Triplet<int> T;
   std::vector<T> entries;
-  for (int i = 0; i < n; ++i) {
-    for (int j = 0; j < n; ++j) {
-      entries.push_back(T(i * n + j, i * n + j, 4));
-      if (i > 0) entries.push_back(T(i * n + j, (i - 1) * n + j, -1));
-      if (i < n - 1) entries.push_back(T(i * n + j, (i + 1) * n + j, -1));
-      if (j > 0) entries.push_back(T(i * n + j, i * n + j - 1, -1));
-      if (j < n - 1) entries.push_back(T(i * n + j, i * n + j + 1, -1));
+  for (int i = 0; i < ak_size; ++i) {
+    for (int j = 0; j < ak_size; ++j) {
+      entries.push_back(T(i * ak_size + j, i * ak_size + j, 4));
+      if (i > 0) {
+        entries.push_back(T(i * ak_size + j, (i - 1) * ak_size + j, -1));
+      }
+      if (i < ak_size - 1) {
+        entries.push_back(T(i * ak_size + j, (i + 1) * ak_size + j, -1));
+      }
+      if (j > 0) {
+        entries.push_back(T(i * ak_size + j, i * ak_size + j - 1, -1));
+      }
+      if (j < ak_size - 1) {
+        entries.push_back(T(i * ak_size + j, i * ak_size + j + 1, -1));
+      }
     }
   }
-  Mat Matrix(n * n, n * n);
+  MatrixType Matrix(ak_size * ak_size, ak_size * ak_size);
   Matrix.setFromTriplets(entries.begin(), entries.end());
-
   return Matrix;
 }
 
 
-template<typename Matrix, typename T = std::complex<double>>
-std::tuple<Matrix, std::vector<T>> CreateRandom(const int aN, const bool is_symm,
-    const int aSeed = std::time(nullptr)) {
-  std::srand(aSeed);
-  Matrix A;
+template<typename MatrixType, typename T = std::complex<double>>
+std::tuple<MatrixType, std::vector<T>>
+CreateRandom(const int ak_size, const bool is_symm,
+    const int ak_seed = std::time(nullptr)) {
+  std::srand(ak_seed);
+  MatrixType A;
   std::vector<T> res;
-  res.reserve(aN);
+  res.reserve(ak_size);
+
   if( is_symm ) {
-    A = CreateStdRandomDiagonal<Matrix>(aN, aSeed);
-    std::vector<typename Matrix::value_type> real_res = convertToVec(A.diagonal());
+    A = CreateStdRandomDiagonal<MatrixType>(ak_size, ak_seed);
+    std::vector<typename MatrixType::value_type> real_res =
+      ConvertToVec(A.diagonal());
     for(auto& x : real_res) {
       res.push_back(T{x});
     }
   } else {
-    res.resize(aN);
-    A = CreateStdRandomSchur<Matrix>(aN, aSeed);
-    for(int i = 0; i < aN-1; ++i) {
+    res.resize(ak_size);
+    A = CreateStdRandomSchur<MatrixType>(ak_size, ak_seed);
+    for(int i = 0; i < ak_size-1; ++i) {
       T d = (A(i, i) + A(i + 1, i + 1)) / 2.0;
       T  pq = std::sqrt(T{ d * d - A(i, i) * A(i + 1, i + 1)
             + A(i, i + 1) * A(i + 1, i)});
-      res.at(i) = d - pq;                                                     // First eigenvalue
+      res.at(i) = d - pq;                                                         // First eigenvalue
       ++i;
-      res.at(i) = d + pq;                                                     // Second eigenvalue
+      res.at(i) = d + pq;                                                         // Second eigenvalue
     }
-    if(aN % 2 == 1) {
-      res.at(aN - 1) = A(aN - 1, aN - 1);
+    if(ak_size % 2 == 1) {
+      res.at(ak_size - 1) = A(ak_size - 1, ak_size - 1);
     }
   }
-  std::sort(res.begin(), res.end(), [](T& a, T& b) { return lesser_ev(a, b);});
-  Matrix Q = CreateUnitaryMatrix<Matrix>(aN, aSeed);
+  std::sort(res.begin(), res.end(), [](T& a, T& b) { return LesserEv(a, b);});
+  MatrixType Q = CreateUnitaryMatrix<MatrixType>(ak_size, ak_seed);
   A = Q.adjoint() * A * Q;
   return std::tie(A, res);
 }

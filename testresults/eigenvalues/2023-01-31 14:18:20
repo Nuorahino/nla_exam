@@ -1,2 +1,0 @@
-version, size, hermitian, complex, seed, tol, runtime in s, index, eigenvalue, error
-1,1,1,1,28,1e-14,2.4607e-05,0,31.000000000000007+0i,7.1054273576010019e-15
