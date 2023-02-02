@@ -39,7 +39,8 @@ CreateHouseholder(const Eigen::MatrixBase<Derived> &ak_x,
 
   // TODO check for correction
   // TODO in function calls pass tolerance
-  if( ak_x.squaredNorm() <= ak_tol ) return;
+  //if( ak_x.squaredNorm() <= ak_tol ) return;
+  if( ak_x.squaredNorm() <= ak_tol * ak_tol ) return;
   MatrixType1 u = ak_x;
   typename Derived::Scalar alpha = - u.norm();
   if( u(0) < 0 ) alpha = -alpha;
@@ -307,14 +308,11 @@ template <class Derived>
 typename std::enable_if_t<std::is_arithmetic<typename Derived::Scalar>::value,
 std::vector<typename Derived::Scalar>>
 DoubleShiftParameter(const Eigen::MatrixBase<Derived> &ak_matrix) {
-  std::cout << "real double Shift parameter" << std::endl;
   typedef typename Derived::Scalar data_type;
   std::vector<typename Eigen::MatrixBase<Derived>::Scalar> res(2);
   //  If Real use the same but with the eigenvalues
   res.at(0) = -ak_matrix.trace();
   res.at(1) = ak_matrix.determinant();
-  std::cout << res << std::endl;
-  std::cout << res.at(0) << res.at(1) << std::endl;
   // TODO implicit shift when possible?
   if( res.at(0) * res.at(0) > 4.0 * res.at(1) ) {
     data_type tmp = std::sqrt(res.at(0) * res.at(0) - 4.0 * res.at(1));
@@ -328,7 +326,6 @@ DoubleShiftParameter(const Eigen::MatrixBase<Derived> &ak_matrix) {
       res.at(1) = ev2 * ev2;
     }
   }
-  std::cout << res << std::endl;
   return res;
 }
 
@@ -362,10 +359,10 @@ void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix) {
   Matrix m1 = a_matrix * a_matrix(Eigen::all, 0) + shift.at(0) *
     a_matrix(Eigen::all, 0) + shift.at(1) * Matrix::Identity(n, 1);               // Only compute the first col
   Matrix p(n,n);                                                                  // Householder Matrix
-  std::cout << shift << std::endl;
   CreateHouseholder(m1, p);                                                       // Calc initial Step
   const_cast<MatrixType &>(a_matrix) = p.adjoint() * a_matrix * p;                // Transformation Step
-  for (int i = 0; i < n - 1; ++i) {
+  //for (int i = 0; i < n - 1; ++i) {
+  for (int i = 0; i < n - 2; ++i) {
     CreateHouseholder(a_matrix(Eigen::seq(i + 1, n - 1), i), p);                  // Buldge Chasing
     const_cast<MatrixType&>(a_matrix) = p.adjoint() * a_matrix * p;               // Transformation Step
     const_cast<MatrixType&>(a_matrix)( Eigen::seq(i + 2, n - 1), i) =

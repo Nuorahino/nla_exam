@@ -143,7 +143,7 @@ std::ostream & operator<<(std::ostream& a_out, const std::vector<C>& ak_v)
   a_out << "{";
   for(auto iter = ak_v.begin(); iter != ak_v.end(); ++iter) {
     a_out << *iter;
-    if(iter +1 != ak_v.begin()) {
+    if(iter +1 != ak_v.end()) {
       a_out << ",";
     }
   }

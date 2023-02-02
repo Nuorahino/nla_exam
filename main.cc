@@ -20,7 +20,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
   int seed = 28;
   for( int i = 1; i < max_size; ++i ) {
     //RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true);
-    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, false);
+    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, false, 1e-6);
     //RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, true);
     //RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, false);
   }
