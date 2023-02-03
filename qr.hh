@@ -82,21 +82,29 @@ CreateHouseholder(const Eigen::MatrixBase<Derived> &ak_x,
 template <class Derived>
 Eigen::Matrix<typename Derived::Scalar, -1, -1>
 HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
-                         const double ak_tol = 1e-14) {
+                         const double ak_tol = 1e-14,
+                         const bool a_is_hermitian = false) {
   typedef Eigen::Matrix<typename Derived::Scalar, -1, -1> Matrix;
   typedef Eigen::MatrixBase<Derived> MatrixType;
+  MatrixType& matrix = const_cast<MatrixType&>(a_matrix);
 
   Matrix q = Matrix::Identity(a_matrix.rows(), a_matrix.cols());                  // q is transformation Matrix
   Matrix p(a_matrix.rows(), a_matrix.rows());                                     // p is Householder reflection
   for (int i = 0; i < a_matrix.rows() - 1; ++i) {
     CreateHouseholder(a_matrix(Eigen::lastN(a_matrix.rows() - i - 1), i), p,
         ak_tol);                                                                  // Calc Householder Matrix
-    const_cast<MatrixType&>(a_matrix) = p.adjoint() * a_matrix * p;                      // Transformation Step
-    const_cast<MatrixType&>(a_matrix)( Eigen::lastN(a_matrix.rows() - i - 2), i) =
-                      Matrix::Zero(a_matrix.rows() - i - 2, 1);                   // Set Round off errors to 0
-//    const_cast<MatrixType&>(a_matrix)(i, Eigen::lastN(a_matrix.rows() - i - 2)) =
-//                      Matrix::Zero(a_matrix.rows() - i - 2, 1);                   // Set Round off errors to 0
+    const_cast<MatrixType&>(a_matrix) = p.adjoint() * a_matrix * p;               // Transformation Step
+    const_cast<MatrixType&>(a_matrix)( Eigen::lastN(a_matrix.rows() - i - 2), i)
+      = Matrix::Zero(a_matrix.rows() - i - 2, 1);                                 // Set Round off errors to 0
     q *= p;                                                                       // Build the transformation Matrix
+  }
+  if constexpr( IsComplex<typename Derived::Scalar>() ) {
+    if( a_is_hermitian ) {
+      for(int i = 1; i < a_matrix.rows(); ++i) {
+            matrix(i-1, i) = std::abs(a_matrix(i-1,i));
+            matrix(i, i-1) = std::abs(a_matrix(i,i-1));
+      }
+    }
   }
   return q;
 }
@@ -264,9 +272,11 @@ ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix) {
       entries.at(1), entries.at(2), buldge);                                            // Initial step
 
   for (int k = 1; k < a_matrix.rows() - 1; ++k) {                                       // Buldge Chasing
-  // TODO find one working for both
-    //entries = GetGivensEntries(a_matrix(k, k-1), buldge);
-  entries = GetGivensEntries(a_matrix(k, k-1), a_matrix(k+1, k-1));
+    if constexpr( std::is_arithmetic<data_type>::value  ) {
+      entries = GetGivensEntries(a_matrix(k, k-1), buldge);
+    } else if constexpr( IsComplex<data_type>() ) {
+      entries = GetGivensEntries(a_matrix(k, k-1), a_matrix(k+1, k-1));
+    }
   ApplyGivens<data_type, is_symmetric>(a_matrix, k, entries.at(0),
       entries.at(1), entries.at(2), buldge);
   //TODO  Maybe neccesary
@@ -536,11 +546,11 @@ typename std::enable_if_t<std::is_arithmetic<typename Derived::Scalar>::value,
           std::vector<std::complex<data_type>>>
 QrMethod(const Eigen::MatrixBase<Derived> &a_matrix, const double ak_tol = 1e-14) {
   assert(a_matrix.rows() == a_matrix.cols());
-  const bool a_is_symmetric = IsHermitian(a_matrix, 1e-8);
+  const bool k_is_symmetric = a_is_hermitian(a_matrix, 1e-8);
   typedef Eigen::Matrix<data_type, -1, -1> Matrix;
   Matrix A = a_matrix;
-  Matrix p = HessenbergTransformation(A, ak_tol);
-  return QrIterationHessenberg<std::complex<data_type>>(A, a_is_symmetric, ak_tol);
+  Matrix p = HessenbergTransformation(A, ak_tol, k_is_symmetric);
+  return QrIterationHessenberg<std::complex<data_type>>(A, k_is_symmetric, ak_tol);
 }
 
 
@@ -548,34 +558,16 @@ template <typename Derived, class data_type = std::complex<double>>
 typename std::enable_if_t<IsComplex<typename Derived::Scalar>(), std::vector<data_type>>
 QrMethod(const Eigen::MatrixBase<Derived> &a_matrix, const double ak_tol = 1e-10) {
   assert(a_matrix.rows() == a_matrix.cols());
-  const bool a_is_symmetric = IsHermitian(a_matrix, 1e-8);
+  const bool k_is_hermitian = IsHermitian(a_matrix, 1e-8);
   typedef Eigen::Matrix<data_type, -1, -1> Matrix;
   Matrix A = a_matrix;
-  Matrix p = HessenbergTransformation(A, ak_tol);
+  Matrix p = HessenbergTransformation(A, ak_tol, k_is_hermitian);
 
-  std::cout << "A " << std::endl << A << std::endl;
-  Eigen::MatrixXcd M_real(A.rows(), A.cols());
-  //Eigen::MatrixXcd M_real = A;
-//  for(int i = 0; i < A.rows(); ++i) {
-  M_real = A.real();
-  std::cout << "A.real(): " << std::endl << A.real() << std::endl;
-  std::cout << "A.real(): " << std::endl << M_real << std::endl;
-  for(int i = 1; i < A.rows(); ++i) {
-//    M_real.row(i) *= std::polar(1.0, -arg(M_real(i, i-1)));
-//    M_real.col(i) *= std::polar(1.0, -arg(M_real(i-1, i)));
-//      if( A(i-1,i).real() >= 0 ) {
-        M_real(i-1, i) = std::abs(A(i-1,i));
-        M_real(i, i-1) = std::abs(A(i-1,i));
-//      } else {
-//        M_real(i-1, i) = -std::abs(A(i-1,i));
-//        M_real(i, i-1) = -std::abs(A(i-1,i));
-//      }
+  if( k_is_hermitian ) {
+    return QrIterationHessenberg<data_type>(A.real(), k_is_hermitian, ak_tol);
+  } else {
+    return QrIterationHessenberg<data_type>(A, k_is_hermitian, ak_tol);
   }
-  std::cout << "M_real " << std::endl << M_real << std::endl;
-
-  //return QrIterationHessenberg<data_type>(A, a_is_symmetric, ak_tol);
-  std::cout << "Hermitian: " << a_is_symmetric << std::endl;
-  return QrIterationHessenberg<data_type>(M_real, a_is_symmetric, ak_tol);
 }
 
 } // namespace nla_exam
