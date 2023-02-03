@@ -265,8 +265,8 @@ ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix) {
 
   for (int k = 1; k < a_matrix.rows() - 1; ++k) {                                       // Buldge Chasing
   // TODO find one working for both
-    entries = GetGivensEntries(a_matrix(k, k-1), buldge);
-  //entries = GetGivensEntries(a_matrix(k, k-1), a_matrix(k+1, k-1));
+    //entries = GetGivensEntries(a_matrix(k, k-1), buldge);
+  entries = GetGivensEntries(a_matrix(k, k-1), a_matrix(k+1, k-1));
   ApplyGivens<data_type, is_symmetric>(a_matrix, k, entries.at(0),
       entries.at(1), entries.at(2), buldge);
   //TODO  Maybe neccesary
@@ -553,14 +553,29 @@ QrMethod(const Eigen::MatrixBase<Derived> &a_matrix, const double ak_tol = 1e-10
   Matrix A = a_matrix;
   Matrix p = HessenbergTransformation(A, ak_tol);
 
-//  Eigen::MatrixXd M_real(A.rows(), A.cols());
+  std::cout << "A " << std::endl << A << std::endl;
+  Eigen::MatrixXcd M_real(A.rows(), A.cols());
+  //Eigen::MatrixXcd M_real = A;
 //  for(int i = 0; i < A.rows(); ++i) {
-//    for(int j = 0; j < A.cols(); ++j) {
-//      M_real(i, j) = std::abs(A(i,j));
-//    }
-//  }
+  M_real = A.real();
+  std::cout << "A.real(): " << std::endl << A.real() << std::endl;
+  std::cout << "A.real(): " << std::endl << M_real << std::endl;
+  for(int i = 1; i < A.rows(); ++i) {
+//    M_real.row(i) *= std::polar(1.0, -arg(M_real(i, i-1)));
+//    M_real.col(i) *= std::polar(1.0, -arg(M_real(i-1, i)));
+//      if( A(i-1,i).real() >= 0 ) {
+        M_real(i-1, i) = std::abs(A(i-1,i));
+        M_real(i, i-1) = std::abs(A(i-1,i));
+//      } else {
+//        M_real(i-1, i) = -std::abs(A(i-1,i));
+//        M_real(i, i-1) = -std::abs(A(i-1,i));
+//      }
+  }
+  std::cout << "M_real " << std::endl << M_real << std::endl;
 
-  return QrIterationHessenberg<data_type>(A, a_is_symmetric, ak_tol);
+  //return QrIterationHessenberg<data_type>(A, a_is_symmetric, ak_tol);
+  std::cout << "Hermitian: " << a_is_symmetric << std::endl;
+  return QrIterationHessenberg<data_type>(M_real, a_is_symmetric, ak_tol);
 }
 
 } // namespace nla_exam
