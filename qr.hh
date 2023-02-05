@@ -311,12 +311,10 @@ void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
   Matrix m1 = a_matrix * a_matrix(Eigen::all, 0) + shift.at(0) *
     a_matrix(Eigen::all, 0) + shift.at(1) * Matrix::Identity(n, 1);               // Only compute the first col
   Matrix p(n,n);                                                                  // Householder Matrix
-  //CreateHouseholder<>(m1, p, ak_tol);                                               // Calc initial Step
-  CreateHouseholder<>(m1, p, 1e-14);                                               // Calc initial Step
+  CreateHouseholder<>(m1, p, ak_tol);                                             // Calc initial Step
   const_cast<MatrixType &>(a_matrix) = p.adjoint() * a_matrix * p;                // Transformation Step
   for (int i = 0; i < n - 2; ++i) {
-    //CreateHouseholder<>(a_matrix(Eigen::seq(i + 1, n - 1), i), p, ak_tol);          // Buldge Chasing
-    CreateHouseholder<>(a_matrix(Eigen::seq(i + 1, n - 1), i), p, 1e-14);          // Buldge Chasing
+    CreateHouseholder<>(a_matrix(Eigen::seq(i + 1, n - 1), i), p, ak_tol);        // Buldge Chasing
     const_cast<MatrixType&>(a_matrix) = p.adjoint() * a_matrix * p;               // Transformation Step
     const_cast<MatrixType&>(a_matrix)( Eigen::seq(i + 2, n - 1), i) =
                     Matrix::Zero(n - i - 2, 1);                                   // Set Round off errors to 0
@@ -354,6 +352,7 @@ bool DeflateDiagonal(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin,
 }
 
 
+//TODO: Fix the convergence
 /* Deflates a Matrix converging to a Schur Matrix
  * Parameter:
  * - a_matrix: Matrix to deflate
@@ -367,7 +366,8 @@ bool DeflateSchur(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin,
                    int &a_end, const double ak_tol = 1e-14) {
   bool state = true;
   for (int i = a_end; i > a_begin; --i) {
-    if (std::abs(a_matrix(i, i - 1)) < ak_tol * std::abs(a_matrix(i, i) +
+    //if (std::abs(a_matrix(i, i - 1)) < ak_tol * std::abs(a_matrix(i, i) +
+    if (std::abs(a_matrix(i, i - 1)) < 1e-7 * std::abs(a_matrix(i, i) +
           a_matrix(i - 1, i - 1))) {
       const_cast<Eigen::MatrixBase<Derived> &>(a_matrix)(i, i - 1) = 0;
       if (!state) {
@@ -375,7 +375,8 @@ bool DeflateSchur(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin,
         return false;                                                             // Subblock to solve found
       }
     } else if (state && (i - 1 > a_begin) &&
-               (std::abs(a_matrix(i - 1, i - 2)) >= ak_tol *
+               //(std::abs(a_matrix(i - 1, i - 2)) >= ak_tol *
+               (std::abs(a_matrix(i - 1, i - 2)) >= 1e-7 *
                 std::abs(a_matrix(i - 2, i - 2) + a_matrix(i - 1, i - 1)))) {     // Start of the block found
       a_end = i;
       --i;                                                                        // Next index already checked
@@ -490,7 +491,7 @@ QrMethod(const Eigen::MatrixBase<Derived> &ak_matrix,
       "Matrix Elements must be convertible to DataType");
   typedef Eigen::Matrix<DataType, -1, -1> Matrix;
 
-  const bool k_is_symmetric = IsHermitian(ak_matrix, 1e-8);
+  const bool k_is_symmetric = IsHermitian(ak_matrix, ak_tol);
   Matrix A = ak_matrix;
   Matrix p = HessenbergTransformation<>(A, ak_tol, k_is_symmetric);
   if (k_is_symmetric) {                                                           // Necessary because it is a template parameter
@@ -504,13 +505,13 @@ QrMethod(const Eigen::MatrixBase<Derived> &ak_matrix,
 template <typename Derived, class DataType = std::complex<double>>
 typename std::enable_if_t<IsComplex<typename Derived::Scalar>(),
   std::vector<DataType>> QrMethod(const Eigen::MatrixBase<Derived> &ak_matrix,
-                                  const double ak_tol = 1e-10) {
+                                  const double ak_tol = 1e-14) {
   assert(ak_matrix.rows() == ak_matrix.cols());
   static_assert(std::is_convertible<typename Derived::Scalar, DataType>::value,
       "Matrix Elements must be convertible to DataType");
   typedef Eigen::Matrix<DataType, -1, -1> Matrix;
 
-  const bool k_is_hermitian = IsHermitian(ak_matrix, 1e-8);
+  const bool k_is_hermitian = IsHermitian(ak_matrix, ak_tol);
   Matrix A = ak_matrix;
   Matrix p = HessenbergTransformation<>(A, ak_tol, k_is_hermitian);
 

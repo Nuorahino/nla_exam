@@ -127,7 +127,7 @@ MatrixType openData(const std::string& ak_file_to_open)
 		}
 		++number_of_rows;
 	}
-  if constexpr(MatrixType::IsRowMajor) {
+  if constexpr (MatrixType::IsRowMajor) {
     return Eigen::Map<MatrixType, 0, Eigen::InnerStride<1>>(entries.data(),
         number_of_rows, entries.size() / number_of_rows);
   } else {
@@ -141,9 +141,9 @@ template<class C>
 std::ostream & operator<<(std::ostream& a_out, const std::vector<C>& ak_v)
 {
   a_out << "{";
-  for(auto iter = ak_v.begin(); iter != ak_v.end(); ++iter) {
+  for (auto iter = ak_v.begin(); iter != ak_v.end(); ++iter) {
     a_out << *iter;
-    if(iter +1 != ak_v.end()) {
+    if (iter +1 != ak_v.end()) {
       a_out << ",";
     }
   }
@@ -180,7 +180,7 @@ MatrixType CreateStdRandom(const int ak_size,
     const int ak_seed = std::time(nullptr)) {
   std::srand(ak_seed);
   MatrixType A(ak_size, ak_size);
-  for( auto& entry : A.reshaped()) {
+  for (auto& entry : A.reshaped()) {
       entry = (std::rand() % 200) - 100;
   }
   return A;
@@ -219,7 +219,7 @@ MatrixType CreateStdRandomSchur(const int ak_size,
                                 const int ak_seed = std::time(nullptr)) {
   std::srand(ak_seed);
   MatrixType A = CreateStdRandomTridiagonal<MatrixType>(ak_size, std::rand());
-  for(int i = 0; i < ak_size-1; i+= 2) {
+  for (int i = 0; i < ak_size-1; i+= 2) {
     A(Eigen::seqN(i, 2), Eigen::seqN(i, 2)) = CreateStdRandom<MatrixType>(2,
         std::rand());
   }
@@ -274,17 +274,17 @@ CreateRandom(const int ak_size, const bool is_symm,
   std::vector<T> res;
   res.reserve(ak_size);
 
-  if( is_symm ) {
+  if (is_symm) {
     A = CreateStdRandomDiagonal<MatrixType>(ak_size, ak_seed);
     std::vector<typename MatrixType::value_type> real_res =
       ConvertToVec(A.diagonal());
-    for(auto& x : real_res) {
+    for (auto& x : real_res) {
       res.push_back(T{x});
     }
   } else {
     res.resize(ak_size);
     A = CreateStdRandomSchur<MatrixType>(ak_size, ak_seed);
-    for(int i = 0; i < ak_size-1; ++i) {
+    for (int i = 0; i < ak_size-1; ++i) {
       T d = (A(i, i) + A(i + 1, i + 1)) / 2.0;
       T  pq = std::sqrt(T{ d * d - A(i, i) * A(i + 1, i + 1)
             + A(i, i + 1) * A(i + 1, i)});
@@ -292,7 +292,7 @@ CreateRandom(const int ak_size, const bool is_symm,
       ++i;
       res.at(i) = d + pq;                                                         // Second eigenvalue
     }
-    if(ak_size % 2 == 1) {
+    if (ak_size % 2 == 1) {
       res.at(ak_size - 1) = A(ak_size - 1, ak_size - 1);
     }
   }
