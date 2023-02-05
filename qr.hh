@@ -66,7 +66,7 @@ HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
   Matrix q = Matrix::Identity(a_matrix.rows(), a_matrix.cols());                  // q is transformation Matrix
   Matrix p(a_matrix.rows(), a_matrix.rows());                                     // p is Householder reflection
   for (int i = 0; i < matrix.rows() - 1; ++i) {
-    CreateHouseholder(matrix(Eigen::lastN(a_matrix.rows() - i - 1), i), p,
+    CreateHouseholder<>(matrix(Eigen::lastN(a_matrix.rows() - i - 1), i), p,
         ak_tol);                                                                  // Calc Householder Matrix
     matrix = p.adjoint() * matrix * p;                                            // Transformation Step
     matrix(Eigen::lastN(matrix.rows() - i - 2), i) =
@@ -231,14 +231,13 @@ GetGivensEntries(const DataType& ak_a, const DataType& ak_b) {
  * Return: void
  */
 template <class DataType, bool is_symmetric, typename Derived>
-//std::enable_if_t<is_symmetric, void>
 void
 ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
                const double = 1e-14) {
   DataType shift = WilkinsonShift<DataType>(a_matrix(Eigen::lastN(2),
         Eigen::lastN(2)));
   DataType buldge = 0;
-  auto entries = GetGivensEntries(a_matrix(0, 0) - shift, a_matrix(1, 0));
+  auto entries = GetGivensEntries<>(a_matrix(0, 0) - shift, a_matrix(1, 0));
   if constexpr( is_symmetric ) {                                                  // Initial step
     ApplyGivens<DataType, is_symmetric>(a_matrix, 0, entries.at(0),
         entries.at(1), buldge);
@@ -249,11 +248,11 @@ ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
 
   for (int k = 1; k < a_matrix.rows() - 1; ++k) {                                 // Buldge Chasing
     if constexpr( is_symmetric ) {
-      entries = GetGivensEntries(a_matrix(k, k-1), buldge);
+      entries = GetGivensEntries<>(a_matrix(k, k-1), buldge);
       ApplyGivens<DataType, is_symmetric>(a_matrix, k, entries.at(0),
       entries.at(1), buldge);
     } else {
-      entries = GetGivensEntries(a_matrix(k, k-1), a_matrix(k+1, k-1));
+      entries = GetGivensEntries<>(a_matrix(k, k-1), a_matrix(k+1, k-1));
       ApplyGivens<DataType, is_symmetric>(a_matrix, k, entries.at(0),
           entries.at(1), entries.at(2));
     }
@@ -308,16 +307,16 @@ void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
   typedef Eigen::Matrix<typename Derived::Scalar, -1, -1> Matrix;
   int n = a_matrix.rows();
   std::vector<typename Derived::Scalar> shift =
-      DoubleShiftParameter(a_matrix(Eigen::lastN(2), Eigen::lastN(2)));
+      DoubleShiftParameter<>(a_matrix(Eigen::lastN(2), Eigen::lastN(2)));
   Matrix m1 = a_matrix * a_matrix(Eigen::all, 0) + shift.at(0) *
     a_matrix(Eigen::all, 0) + shift.at(1) * Matrix::Identity(n, 1);               // Only compute the first col
   Matrix p(n,n);                                                                  // Householder Matrix
-  //CreateHouseholder(m1, p, ak_tol);                                               // Calc initial Step
-  CreateHouseholder(m1, p, 1e-14);                                               // Calc initial Step
+  //CreateHouseholder<>(m1, p, ak_tol);                                               // Calc initial Step
+  CreateHouseholder<>(m1, p, 1e-14);                                               // Calc initial Step
   const_cast<MatrixType &>(a_matrix) = p.adjoint() * a_matrix * p;                // Transformation Step
   for (int i = 0; i < n - 2; ++i) {
-    //CreateHouseholder(a_matrix(Eigen::seq(i + 1, n - 1), i), p, ak_tol);          // Buldge Chasing
-    CreateHouseholder(a_matrix(Eigen::seq(i + 1, n - 1), i), p, 1e-14);          // Buldge Chasing
+    //CreateHouseholder<>(a_matrix(Eigen::seq(i + 1, n - 1), i), p, ak_tol);          // Buldge Chasing
+    CreateHouseholder<>(a_matrix(Eigen::seq(i + 1, n - 1), i), p, 1e-14);          // Buldge Chasing
     const_cast<MatrixType&>(a_matrix) = p.adjoint() * a_matrix * p;               // Transformation Step
     const_cast<MatrixType&>(a_matrix)( Eigen::seq(i + 2, n - 1), i) =
                     Matrix::Zero(n - i - 2, 1);                                   // Set Round off errors to 0
@@ -493,7 +492,7 @@ QrMethod(const Eigen::MatrixBase<Derived> &ak_matrix,
 
   const bool k_is_symmetric = IsHermitian(ak_matrix, 1e-8);
   Matrix A = ak_matrix;
-  Matrix p = HessenbergTransformation(A, ak_tol, k_is_symmetric);
+  Matrix p = HessenbergTransformation<>(A, ak_tol, k_is_symmetric);
   if( k_is_symmetric ) {                                                          // Necessary because it is a template parameter
     return QrIterationHessenberg<std::complex<DataType>, true>(A, ak_tol);
   } else {
@@ -513,7 +512,7 @@ typename std::enable_if_t<IsComplex<typename Derived::Scalar>(),
 
   const bool k_is_hermitian = IsHermitian(ak_matrix, 1e-8);
   Matrix A = ak_matrix;
-  Matrix p = HessenbergTransformation(A, ak_tol, k_is_hermitian);
+  Matrix p = HessenbergTransformation<>(A, ak_tol, k_is_hermitian);
 
   if( k_is_hermitian ) {                                                          // Necessary because it is a template parameter
     return QrIterationHessenberg<DataType, true>(A.real(), ak_tol);
