@@ -42,7 +42,7 @@ void PrintEigenvalues(std::ofstream& a_file, const std::string& ak_prefix,
                       const std::vector<std::complex<double>>& ak_estimate,
                       const std::vector<double>& ak_error) {
   assert(ak_estimate.size() == ak_error.size());
-  for(long unsigned int i = 0; i < ak_estimate.size(); ++i) {
+  for (long unsigned int i = 0; i < ak_estimate.size(); ++i) {
     a_file << ak_prefix << ","
            << i << ","
            << std::setprecision(std::numeric_limits<double>::max_digits10)
@@ -83,11 +83,11 @@ std::vector<double> GetApproximationError(
   assert( ak_estimate.size() == ak_exact.size());
   std::vector<double> res;
   res.reserve(ak_estimate.size());
-  for( auto estimate : ak_estimate) {
+  for (auto estimate : ak_estimate) {
     double min = std::numeric_limits<double>::max();
-    for( auto exact : ak_exact) {
+    for (auto exact : ak_exact) {
       double dist = std::abs(estimate - exact);
-      if(dist < min) min = dist;
+      if (dist < min) min = dist;
     }
     res.push_back(min);
   }

@@ -34,13 +34,13 @@ CreateHouseholder(const Eigen::MatrixBase<Derived> &ak_x,
 
   // TODO improve break criteria
   //if( ak_x.squaredNorm() <= ak_tol ) return;
-  if( ak_x.squaredNorm() <= ak_tol * ak_tol ) return;                             // Avoid devision by 0
+  if (ak_x.squaredNorm() <= ak_tol * ak_tol) return;                             // Avoid devision by 0
   MatrixType u = ak_x;
   typename Derived::Scalar alpha = u.norm();
-  if constexpr( IsComplex<typename Derived::Scalar>() ) {
+  if constexpr (IsComplex<typename Derived::Scalar>()) {
     alpha *= std::polar(1.0, arg(u(0)));                                          // Choise to avoid loss of significance
   } else {
-    if( u(0) < 0 ) alpha *= -1;
+    if (u(0) < 0) alpha *= -1;
   }
   u(0) = u(0) + alpha;
   p.setIdentity();                                                                // Leave rest unchanged
@@ -71,17 +71,17 @@ HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
     matrix = p.adjoint() * matrix * p;                                            // Transformation Step
     matrix(Eigen::lastN(matrix.rows() - i - 2), i) =
       Matrix::Zero(matrix.rows() - i - 2, 1);                                     // Set Round off errors to 0
-    if( a_is_hermitian ) {
+    if (a_is_hermitian) {
       matrix(i, Eigen::lastN(a_matrix.rows() - i - 2))
         = Matrix::Zero(1, a_matrix.rows() - i - 2);                               // Set Round off errors to 0
     }
     q *= p;                                                                       // Build the transformation Matrix
   }
-  if constexpr( IsComplex<typename Derived::Scalar>() ) {
-    if( a_is_hermitian ) {                                                        // Transform complex Hermitian Matrix to Real
+  if constexpr (IsComplex<typename Derived::Scalar>()) {
+    if (a_is_hermitian) {                                                         // Transform complex Hermitian Matrix to Real
       for(int i = 1; i < a_matrix.rows(); ++i) {
-            matrix(i-1, i) = std::abs(a_matrix(i-1,i));
-            matrix(i, i-1) = std::abs(a_matrix(i,i-1));
+            matrix(i-1, i) = std::abs(a_matrix(i-1, i));
+            matrix(i, i-1) = std::abs(a_matrix(i, i-1));
       }
     }
   }
@@ -98,7 +98,7 @@ template <class DataType, class Derived> inline
 std::enable_if_t<std::is_arithmetic<DataType>::value, DataType>
 WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
   DataType d = (ak_matrix(0, 0) - ak_matrix(1, 1)) / 2.0;
-  if( d >= 0 ) {
+  if (d >= 0) {
     return ak_matrix(1, 1) + d - std::sqrt(d * d + ak_matrix(1, 0) *
         ak_matrix(1, 0));
   } else {
@@ -178,10 +178,10 @@ ApplyGivens(const Eigen::MatrixBase<Derived> &a_matrix, const int ak_k,
     Derived>&>(a_matrix);
 
   Matrix Q = Matrix::Identity(2, 2);
-  Q(0 , 0) = ak_c;
-  Q(1 , 1) = ak_c;
-  Q(0 , 1) = ak_s;
-  Q(1 , 0) = -ak_sconj;
+  Q(0, 0) = ak_c;
+  Q(1, 1) = ak_c;
+  Q(0, 1) = ak_s;
+  Q(1, 0) = -ak_sconj;
   int start = std::max(0, ak_k -1);
   long end = std::min(long{ak_k + 2}, long{matrix.rows() - 1});
   matrix(Eigen::seq(ak_k, ak_k+1), Eigen::seq(start, matrix.rows() -1)) =
@@ -212,7 +212,7 @@ GetGivensEntries(const DataType& ak_a, const DataType& ak_b) {
 template<class DataType> inline
 std::enable_if_t<IsComplex<DataType>(), std::vector<DataType>>
 GetGivensEntries(const DataType& ak_a, const DataType& ak_b) {
-  assert( 1 != 0);
+  assert(1 != 0);
   typedef typename DataType::value_type real;
   std::vector<DataType> res(3);
   real absa = std::abs(ak_a);
@@ -238,7 +238,7 @@ ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
         Eigen::lastN(2)));
   DataType buldge = 0;
   auto entries = GetGivensEntries<>(a_matrix(0, 0) - shift, a_matrix(1, 0));
-  if constexpr( is_symmetric ) {                                                  // Initial step
+  if constexpr (is_symmetric) {                                                   // Initial step
     ApplyGivens<DataType, is_symmetric>(a_matrix, 0, entries.at(0),
         entries.at(1), buldge);
   } else {
@@ -247,7 +247,7 @@ ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
   }
 
   for (int k = 1; k < a_matrix.rows() - 1; ++k) {                                 // Buldge Chasing
-    if constexpr( is_symmetric ) {
+    if constexpr (is_symmetric) {
       entries = GetGivensEntries<>(a_matrix(k, k-1), buldge);
       ApplyGivens<DataType, is_symmetric>(a_matrix, k, entries.at(0),
       entries.at(1), buldge);
@@ -279,7 +279,7 @@ DoubleShiftParameter(const Eigen::MatrixBase<Derived> &ak_matrix) {
   res.at(0) = -ak_matrix.trace();
   res.at(1) = ak_matrix.determinant();
   // TODO implicit shift when possible?
-  if( res.at(0) * res.at(0) > 4.0 * res.at(1) ) {
+  if (res.at(0) * res.at(0) > 4.0 * res.at(1)) {
     DataType tmp = std::sqrt(res.at(0) * res.at(0) - 4.0 * res.at(1));
     DataType ev1 = (-res.at(0) + tmp) / 2.0;
     DataType ev2 = (-res.at(0) - tmp) / 2.0;
@@ -493,7 +493,7 @@ QrMethod(const Eigen::MatrixBase<Derived> &ak_matrix,
   const bool k_is_symmetric = IsHermitian(ak_matrix, 1e-8);
   Matrix A = ak_matrix;
   Matrix p = HessenbergTransformation<>(A, ak_tol, k_is_symmetric);
-  if( k_is_symmetric ) {                                                          // Necessary because it is a template parameter
+  if (k_is_symmetric) {                                                           // Necessary because it is a template parameter
     return QrIterationHessenberg<std::complex<DataType>, true>(A, ak_tol);
   } else {
     return QrIterationHessenberg<std::complex<DataType>, false>(A, ak_tol);
@@ -514,7 +514,7 @@ typename std::enable_if_t<IsComplex<typename Derived::Scalar>(),
   Matrix A = ak_matrix;
   Matrix p = HessenbergTransformation<>(A, ak_tol, k_is_hermitian);
 
-  if( k_is_hermitian ) {                                                          // Necessary because it is a template parameter
+  if (k_is_hermitian) {                                                           // Necessary because it is a template parameter
     return QrIterationHessenberg<DataType, true>(A.real(), ak_tol);
   } else {
     return QrIterationHessenberg<DataType, false>(A, ak_tol);
