@@ -16,13 +16,13 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
   PrintSummaryHeader(summary_file);
   PrintEigenvalueHeader(eigenvalue_file);
 
-  int max_size = 50;
+  int max_size = 1000;
   int seed = 28;
   for( int i = 1; i < max_size; ++i ) {
-//    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true);
-    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, false, 1e-14);
-//    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, true);
-//    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, false, 1e-20);
+    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-10);
+    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, false, 1e-10);
+    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, true, 1e-10);
+    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, false, 1e-10);
   }
 
   return 1;
