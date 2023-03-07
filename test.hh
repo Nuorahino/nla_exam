@@ -97,14 +97,17 @@ std::vector<double> GetApproximationError(
 template<class MatrixType>
 void RunTest(std::ofstream& a_summary_file, std::ofstream& a_eigenvalue_file,
     const int ak_size, const int ak_seed, const bool ak_is_hermitian,
-    const double ak_tol = 1e-14) {
-  std::cout << "new test" << std::endl;
+    const double ak_tol = 1e-12) {
   typedef std::complex<double> C;
   MatrixType M;
   std::vector<C> res;
   std::tie(M,res) = CreateRandom<MatrixType>(ak_size, ak_is_hermitian, ak_seed);
+
+  nla_exam::HessenbergTransformation<>(M, ak_tol, ak_is_hermitian);
   auto start = std::chrono::steady_clock::now();
   std::vector<C> estimate = nla_exam::QrMethod(M, ak_tol);
+  //Eigen::ComplexEigenSolver<MatrixType> es(M);
+  //std::vector<C> estimate = ConvertToVec(es.eigenvalues());
   auto end = std::chrono::steady_clock::now();
   std::chrono::duration<double> runtime = (end - start);
   std::sort(estimate.begin(), estimate.end(), [](C& a, C& b) {
@@ -115,8 +118,12 @@ void RunTest(std::ofstream& a_summary_file, std::ofstream& a_eigenvalue_file,
   PrintSummary(a_summary_file, prefix, error);
   PrintEigenvalues(a_eigenvalue_file, prefix, estimate, error);
 
+//  Eigen::ComplexEigenSolver<MatrixType> es(M, computeEigenvectors=false);
 //  Eigen::ComplexEigenSolver<MatrixType> es(M);
 //  auto comp_eigenvalues = es.eigenvalues();
+//  std::vector<std::complex<double>> comp_eigenvalues = ConvertToVec(es.eigenvalues());
+//  std::vector<double> error2 = GetApproximationError(comp_eigenvalues, res);
+//  std::cout << error2 << std::endl;
 //  std::cout << "Results: Estimate, Eigen, exact, error" << std::endl;
 //  std::cout << estimate << std::endl;
 //  std::cout << comp_eigenvalues << std::endl;

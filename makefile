@@ -1,6 +1,7 @@
 CC := g++
 
 BASEVERSION := 1
+#BASEVERSION := 999
 
 INCL := -I ../helpfunctions
 
