@@ -56,6 +56,8 @@ CreateHouseholder(const Eigen::MatrixBase<Derived> &ak_x,
 template<class Derived, class Derived2>
 void ApplyHouseholder(const Eigen::MatrixBase<Derived2> &ak_x,
                       const Eigen::MatrixBase<Derived> &a_matrix,
+                      const long start,
+                      const long offset,
                       const double ak_tol = 1e-12) {
   typedef typename Derived::Scalar T;
   typedef Eigen::MatrixBase<Derived> MatrixType;
@@ -73,16 +75,16 @@ void ApplyHouseholder(const Eigen::MatrixBase<Derived2> &ak_x,
   T beta = 2 / w.squaredNorm();
   long n = w.rows();
   for(int i = 0; i < a_matrix.cols(); ++i) {
-    //alpha = beta * w.dot(a_matrix(Eigen::lastN(a_matrix.rows()-1),i));
-    //matrix(Eigen::lastN(a_matrix.rows()-1),i) -= alpha * w;
-    alpha = beta * w.dot(a_matrix(Eigen::seqN(1, n),i));
-    matrix(Eigen::seqN(1, n),i) -= alpha * w;
+//    alpha = beta * w.dot(a_matrix(Eigen::lastN(a_matrix.rows()-1),i));
+//    matrix(Eigen::lastN(a_matrix.rows()-1),i) -= alpha * w;
+    alpha = beta * w.dot(a_matrix(Eigen::seqN(start + offset, n),i));
+    matrix(Eigen::seqN(start + offset, n),i) -= alpha * w;
   }
-  // TODO adjust size
-  matrix(Eigen::seqN(1, n-1),0) = MatrixType::Zero(n - 1, 1);
+//  std::cout << "after cols" << std::endl;
+//  std::cout << a_matrix << std::endl;;
   for(int i = 0; i < a_matrix.rows(); ++i) {
-    alpha = beta * a_matrix(i, Eigen::seqN(1, n)) * w;
-    matrix(i, Eigen::seqN(1, n)) -= alpha * w.adjoint().eval();
+    alpha = beta * a_matrix(i, Eigen::seqN(offset, n)) * w;
+    matrix(i, Eigen::seqN(offset, n)) -= alpha * w.adjoint().eval();
   }
 }
 
@@ -98,10 +100,11 @@ void HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
   typedef Eigen::MatrixBase<Derived> MatrixType;
   MatrixType& matrix = const_cast<MatrixType&>(a_matrix);
 
-  for (int i = 0; i < matrix.rows() - 1; ++i) {
+  for (int i = 0; i < matrix.rows() - 2; ++i) {
     ApplyHouseholder(matrix(Eigen::lastN(a_matrix.rows() - i - 1), i),
-                     matrix(Eigen::lastN(a_matrix.rows() - i),
-                        Eigen::lastN(a_matrix.rows() - i)), ak_tol);
+        matrix(Eigen::all, Eigen::lastN(matrix.cols() - i)), i, 1, ak_tol);
+    matrix(Eigen::seqN(i + 2, a_matrix.rows() - i - 2), i) =
+      MatrixType::Zero(a_matrix.rows() - i - 2, 1);
   }
 //  std::cout << "Hessenberg Matrix" << std::endl;
 //  std::cout << a_matrix << std::endl;;
@@ -109,10 +112,6 @@ void HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
     if (a_is_hermitian) {                                                         // Transform complex Hermitian Matrix to Real
       for(int i = 1; i < a_matrix.rows(); ++i) {
         // TODO find condition for good sign
-//        int sign = 1;
-//        if (std::rand() %2 ) sign = -1;
-//        matrix(i-1, i) = sign * std::abs(a_matrix(i-1, i));
-//        matrix(i, i-1) = sign * std::abs(a_matrix(i, i-1));
         matrix(i-1, i) = std::abs(a_matrix(i-1, i));
         matrix(i, i-1) = std::abs(a_matrix(i, i-1));
       }
@@ -389,22 +388,14 @@ void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
     a_matrix(Eigen::all, 0) + shift.at(0) *
     a_matrix(Eigen::seqN(0,3), 0) + shift.at(1) * Matrix::Identity(3, 1);
   Matrix p(3,3);                                                                  // Householder Matrix
-  CreateHouseholder<>(m1, p, ak_tol);                                             // Calc initial Step
-  matrix(Eigen::seqN(0,3), Eigen::all) = p.adjoint() *
-    a_matrix(Eigen::seqN(0,3), Eigen::all);
-  matrix(Eigen::all, Eigen::seqN(0,3)) *= p;                                      // Transformation Step
+  ApplyHouseholder<>(m1, matrix, 0, 0, ak_tol);                                             // Calc initial Step
   for (int i = 0; i < n - 3; ++i) {
-    CreateHouseholder<>(matrix(Eigen::seq(i + 1, i + 3), i), p, ak_tol);          // Buldge Chasing
-    matrix(Eigen::seq(i+1, i+3), Eigen::all) = p.adjoint() *
-      a_matrix(Eigen::seq(i+1, i+3), Eigen::all);
-    matrix(Eigen::all, Eigen::seq(i+1, i+3)) *= p;                                // Transformation Step
+    ApplyHouseholder<>(matrix(Eigen::seqN(i + 1, 3), i),
+        matrix(Eigen::all, Eigen::seq(i, n - 1)), i,  1, ak_tol);          // Buldge Chasing
     matrix( Eigen::seq(i + 2, i+3), i) = Matrix::Zero(2, 1);                      // Set Round off errors to 0
   }
-  p.resize(2,2);
-  CreateHouseholder<>(matrix(Eigen::seq(n-2, n-1), n-3), p, ak_tol);              // Buldge Chasing
-  matrix(Eigen::seq(n-2, n-1), Eigen::all) = p.adjoint() *
-    a_matrix(Eigen::seq(n-2, n-1), Eigen::all);
-  matrix(Eigen::all, Eigen::seq(n-2, n-1)) *= p;                                  // Transformation Step
+  // Maybe Givens?
+  ApplyHouseholder(matrix(Eigen::seq(n-2, n-1), n-3), matrix(Eigen::all, Eigen::lastN(3)), n - 3, 1, ak_tol);
 }
 
 
