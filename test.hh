@@ -103,8 +103,8 @@ void RunTest(std::ofstream& a_summary_file, std::ofstream& a_eigenvalue_file,
   std::vector<C> res;
   std::tie(M,res) = CreateRandom<MatrixType>(ak_size, ak_is_hermitian, ak_seed);
 
-  nla_exam::HessenbergTransformation<>(M, ak_tol, ak_is_hermitian);
   auto start = std::chrono::steady_clock::now();
+  nla_exam::HessenbergTransformation<>(M, ak_tol, ak_is_hermitian);
   std::vector<C> estimate = nla_exam::QrMethod(M, ak_tol);
   //Eigen::ComplexEigenSolver<MatrixType> es(M);
   //std::vector<C> estimate = ConvertToVec(es.eigenvalues());
