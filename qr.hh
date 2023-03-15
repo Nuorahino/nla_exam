@@ -40,7 +40,6 @@ void ApplyHouseholder(const Eigen::MatrixBase<Derived2> &ak_x,
                       const double ak_tol = 1e-12) {
   typedef typename Derived::Scalar T;
   typedef Eigen::MatrixBase<Derived> MatrixType;
-  typedef Eigen::MatrixBase<Derived2> VectorType;
   MatrixType& matrix = const_cast<MatrixType&>(a_matrix);
   Eigen::Vector<T, -1> w = ak_x;
   T alpha = w.norm();
@@ -64,6 +63,39 @@ void ApplyHouseholder(const Eigen::MatrixBase<Derived2> &ak_x,
     matrix(i, Eigen::seqN(a_offset, n)) -= alpha * w.adjoint().eval();
   }
 }
+
+template<class Derived, class Derived2>
+void ApplyReverseHouseholder(const Eigen::MatrixBase<Derived2> &ak_x,
+                             const Eigen::MatrixBase<Derived> &a_matrix,
+                             const long a_start,
+                             const long a_offset,
+                             const double ak_tol = 1e-12) {
+  typedef typename Derived::Scalar T;
+  typedef Eigen::MatrixBase<Derived> MatrixType;
+  MatrixType& matrix = const_cast<MatrixType&>(a_matrix);
+  Eigen::Vector<T, -1> w = ak_x;
+  const long n = w.rows();
+  T alpha = w.norm();
+  if constexpr (IsComplex<typename Derived::Scalar>()) {
+    alpha *= std::polar(1.0, arg(w(n - 1)));                                       // Choise to avoid loss of significance
+  } else {
+    if (w(n - 1) < 0) alpha *= -1;
+  }
+  w(n - 1) = ak_x(n - 1) + alpha;
+  if (w.squaredNorm() < ak_tol) return;
+  T beta = 2 / w.squaredNorm();
+  for(int i = 0; i < a_matrix.cols(); ++i) {
+//    alpha = beta * w.dot(a_matrix(Eigen::lastN(a_matrix.rows()-1),i));
+//    matrix(Eigen::lastN(a_matrix.rows()-1),i) -= alpha * w;
+    alpha = beta * w.dot(a_matrix(Eigen::seqN(a_start, n),i));
+    matrix(Eigen::seqN(a_start, n),i) -= alpha * w.conjugate();
+  }
+  for(int i = 0; i < a_matrix.rows(); ++i) {
+    alpha = beta * a_matrix(i, Eigen::seqN(a_offset, n)) * w.conjugate();
+    matrix(i, Eigen::seqN(a_offset, n)) -= alpha * w.transpose().eval();
+  }
+}
+
 
 /* Transforms a Matrix to Hessenberg form
  * Parameter:
@@ -375,6 +407,34 @@ void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
   ApplyHouseholder(matrix(Eigen::seq(n-2, n-1), n-3), matrix(Eigen::all, Eigen::lastN(3)), n - 2, 1, ak_tol);
 }
 
+template <class Derived>
+void ReverseDoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
+                       const double ak_tol = 1e-12) {
+  typedef Eigen::MatrixBase<Derived> MatrixType;
+  typedef Eigen::Matrix<typename Derived::Scalar, -1, -1> Matrix;
+  MatrixType& matrix = const_cast<MatrixType &>(a_matrix);
+  int n = a_matrix.rows();
+  std::vector<typename Derived::Scalar> shift =
+      DoubleShiftParameter<>(a_matrix(Eigen::seqN(0, 2), Eigen::seqN(0, 2)));
+  if (shift.size() == 0) {    // TODO: remove this test
+    ImplicitQrStep<typename Derived::Scalar, false>(a_matrix, ak_tol);
+    return;
+  }
+  // Only first three entries of first col needed
+  Matrix m1 = a_matrix(Eigen::lastN(3), Eigen::all) *
+    a_matrix(Eigen::all, a_matrix.rows() -1) + shift.at(0) *
+    a_matrix(Eigen::lastN(3), 0) + shift.at(1) * Matrix::Identity(3, 1);
+  Matrix p(3,3);                                                                  // Householder Matrix
+  ApplyReverseHouseholder<>(m1, matrix, n - 1, 0, ak_tol);                                             // Calc initial Step
+  for (int i = 0; i < n - 3; ++i) {
+    ApplyReverseHouseholder<>(matrix(Eigen::seqN(n - i - 1, 3), n - i),
+        matrix(Eigen::all, Eigen::seq(0, n - i - 1)), n - i - 1,  1, ak_tol);          // Buldge Chasing
+    matrix(n - i, Eigen::seq(n - i - 3, n - i - 2)) = Matrix::Zero(1, 2);                      // Set Round off errors to 0
+  }
+  // Maybe Givens?
+  ApplyReverseHouseholder(matrix(Eigen::seqN(0, 2), 2), matrix(Eigen::seqN(0,3), Eigen::all), 0, 1, ak_tol);
+}
+
 
 /* Deflates a Matrix converging to a diagonal matrix
  * Parameter:
@@ -505,7 +565,8 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
   if constexpr (std::is_arithmetic<typename Derived::Scalar>::value &&
       !ak_is_hermitian) {
       end_of_while = 1;
-      step = &DoubleShiftQrStep<StepMatrix>;
+      //step = &DoubleShiftQrStep<StepMatrix>;
+      step = &ReverseDoubleShiftQrStep<StepMatrix>;
       deflate = &DeflateSchur<Derived>;
   } else {
     step = &ImplicitQrStep<typename MatrixType::Scalar, ak_is_hermitian,

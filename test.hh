@@ -102,21 +102,27 @@ void RunTest(std::ofstream& a_summary_file, std::ofstream& a_eigenvalue_file,
   MatrixType M;
   std::vector<C> res;
   std::tie(M,res) = CreateRandom<MatrixType>(ak_size, ak_is_hermitian, ak_seed);
+  std::cout << "Start" << std::endl;
+  std::cout << M << std::endl;
+  nla_exam::ApplyReverseHouseholder(M(M.rows() - 1, Eigen::seqN(0, M.rows() - 1)), M, 0, 0);
+  std::cout << "result" << std::endl;
+  std::cout << M << std::endl;
 
-  auto start = std::chrono::steady_clock::now();
-  nla_exam::HessenbergTransformation<>(M, ak_tol, ak_is_hermitian);
-  std::vector<C> estimate = nla_exam::QrMethod(M, ak_tol);
-  //Eigen::ComplexEigenSolver<MatrixType> es(M);
-  //std::vector<C> estimate = ConvertToVec(es.eigenvalues());
-  auto end = std::chrono::steady_clock::now();
-  std::chrono::duration<double> runtime = (end - start);
-  std::sort(estimate.begin(), estimate.end(), [](C& a, C& b) {
-      return LesserEv(a, b);});
-  std::string prefix = GetVariantString(ak_size, ak_is_hermitian,
-      IsComplex<typename MatrixType::Scalar>(), ak_seed, ak_tol, runtime);
-  std::vector<double> error = GetApproximationError(estimate, res);
-  PrintSummary(a_summary_file, prefix, error);
-  PrintEigenvalues(a_eigenvalue_file, prefix, estimate, error);
+
+//  auto start = std::chrono::steady_clock::now();
+//  nla_exam::HessenbergTransformation<>(M, ak_tol, ak_is_hermitian);
+//  std::vector<C> estimate = nla_exam::QrMethod(M, ak_tol);
+//  //Eigen::ComplexEigenSolver<MatrixType> es(M);
+//  //std::vector<C> estimate = ConvertToVec(es.eigenvalues());
+//  auto end = std::chrono::steady_clock::now();
+//  std::chrono::duration<double> runtime = (end - start);
+//  std::sort(estimate.begin(), estimate.end(), [](C& a, C& b) {
+//      return LesserEv(a, b);});
+//  std::string prefix = GetVariantString(ak_size, ak_is_hermitian,
+//      IsComplex<typename MatrixType::Scalar>(), ak_seed, ak_tol, runtime);
+//  std::vector<double> error = GetApproximationError(estimate, res);
+//  PrintSummary(a_summary_file, prefix, error);
+//  PrintEigenvalues(a_eigenvalue_file, prefix, estimate, error);
 
 //  Eigen::ComplexEigenSolver<MatrixType> es(M, computeEigenvectors=false);
 //  Eigen::ComplexEigenSolver<MatrixType> es(M);
