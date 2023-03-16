@@ -2,6 +2,7 @@
 #define QR_HH_
 
 /*
+ * TODO: the block passed to the Hessenberg transformation can be decreased
  * TODO: optimize for eigen (noalias)
  * TODO: include the deflation in the step ?
  * TODO: use threads
@@ -42,6 +43,7 @@ void ApplyHouseholder(const Eigen::MatrixBase<Derived2> &ak_x,
   typedef Eigen::MatrixBase<Derived> MatrixType;
   MatrixType& matrix = const_cast<MatrixType&>(a_matrix);
   Eigen::Vector<T, -1> w = ak_x;
+  long n = w.rows();
   T alpha = w.norm();
   if constexpr (IsComplex<typename Derived::Scalar>()) {
     alpha *= std::polar(1.0, arg(w(0)));                                       // Choise to avoid loss of significance
@@ -51,7 +53,6 @@ void ApplyHouseholder(const Eigen::MatrixBase<Derived2> &ak_x,
   w(0) = ak_x(0) + alpha;
   if (w.squaredNorm() < ak_tol) return;
   T beta = 2 / w.squaredNorm();
-  long n = w.rows();
   for(int i = 0; i < a_matrix.cols(); ++i) {
 //    alpha = beta * w.dot(a_matrix(Eigen::lastN(a_matrix.rows()-1),i));
 //    matrix(Eigen::lastN(a_matrix.rows()-1),i) -= alpha * w;
@@ -85,14 +86,12 @@ void ApplyReverseHouseholder(const Eigen::MatrixBase<Derived2> &ak_x,
   if (w.squaredNorm() < ak_tol) return;
   T beta = 2 / w.squaredNorm();
   for(int i = 0; i < a_matrix.cols(); ++i) {
-//    alpha = beta * w.dot(a_matrix(Eigen::lastN(a_matrix.rows()-1),i));
-//    matrix(Eigen::lastN(a_matrix.rows()-1),i) -= alpha * w;
     alpha = beta * w.dot(a_matrix(Eigen::seqN(a_start, n),i));
-    matrix(Eigen::seqN(a_start, n),i) -= alpha * w.conjugate();
+    matrix(Eigen::seqN(a_start, n),i) -= alpha * w;
   }
   for(int i = 0; i < a_matrix.rows(); ++i) {
-    alpha = beta * a_matrix(i, Eigen::seqN(a_offset, n)) * w.conjugate();
-    matrix(i, Eigen::seqN(a_offset, n)) -= alpha * w.transpose().eval();
+    alpha = beta * a_matrix(i, Eigen::seqN(a_start, n)) * w;
+    matrix(i, Eigen::seqN(a_start, n)) -= alpha * w.adjoint().eval();
   }
 }
 
@@ -351,26 +350,26 @@ ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
 template <class Derived>
 typename std::enable_if_t<std::is_arithmetic<typename Derived::Scalar>::value,
 std::vector<typename Derived::Scalar>>
-DoubleShiftParameter(const Eigen::MatrixBase<Derived> &ak_matrix) {
+DoubleShiftParameter(const Eigen::MatrixBase<Derived> &ak_matrix, const int a_index = 1) {
   typedef typename Derived::Scalar DataType;
   std::vector<typename Derived::Scalar> res(2);
   //  If Real use the same but with the eigenvalues
   res.at(0) = -ak_matrix.trace();
   res.at(1) = ak_matrix.determinant();
   // TODO implicit shift when possible?
-  if (res.at(0) * res.at(0) > 4.0 * res.at(1)) {
-    return std::vector<typename Derived::Scalar>{}; // TODO remove this test
-    DataType tmp = std::sqrt(res.at(0) * res.at(0) - 4.0 * res.at(1));
-    DataType ev1 = (-res.at(0) + tmp) / 2.0;
-    DataType ev2 = (-res.at(0) - tmp) / 2.0;
-    if (std::abs(ev1 - ak_matrix(1,1)) < std::abs(ev2 - ak_matrix(1,1))) {
-      res.at(0) = -2.0 * ev1;
-      res.at(1) = ev1 * ev1;
-    } else {
-      res.at(0) = -2.0 * ev2;
-      res.at(1) = ev2 * ev2;
-    }
-  }
+//  if (res.at(0) * res.at(0) > 4.0 * res.at(1)) {
+//    //return std::vector<typename Derived::Scalar>{}; // TODO remove this test
+//    DataType tmp = std::sqrt(res.at(0) * res.at(0) - 4.0 * res.at(1));
+//    DataType ev1 = (-res.at(0) + tmp) / 2.0;
+//    DataType ev2 = (-res.at(0) - tmp) / 2.0;
+//    if (std::abs(ev1 - ak_matrix(a_index, a_index)) < std::abs(ev2 - ak_matrix(a_index, a_index))) {
+//      res.at(0) = -2.0 * ev1;
+//      res.at(1) = ev1 * ev1;
+//    } else {
+//      res.at(0) = -2.0 * ev2;
+//      res.at(1) = ev2 * ev2;
+//    }
+//  }
   return res;
 }
 
@@ -388,20 +387,20 @@ void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
   int n = a_matrix.rows();
   std::vector<typename Derived::Scalar> shift =
       DoubleShiftParameter<>(a_matrix(Eigen::lastN(2), Eigen::lastN(2)));
-  if (shift.size() == 0) {    // TODO: remove this test
-    ImplicitQrStep<typename Derived::Scalar, false>(a_matrix, ak_tol);
-    return;
-  }
+//  if (shift.size() == 0) {    // TODO: remove this test
+//    ImplicitQrStep<typename Derived::Scalar, false>(a_matrix, ak_tol);
+//    return;
+//  }
   // Only first three entries of first col needed
   Matrix m1 = a_matrix(Eigen::seqN(0,3), Eigen::all) *
     a_matrix(Eigen::all, 0) + shift.at(0) *
     a_matrix(Eigen::seqN(0,3), 0) + shift.at(1) * Matrix::Identity(3, 1);
-  Matrix p(3,3);                                                                  // Householder Matrix
+  //Matrix p(3,3);                                                                  // Householder Matrix
   ApplyHouseholder<>(m1, matrix, 0, 0, ak_tol);                                             // Calc initial Step
   for (int i = 0; i < n - 3; ++i) {
     ApplyHouseholder<>(matrix(Eigen::seqN(i + 1, 3), i),
         matrix(Eigen::all, Eigen::seq(i, n - 1)), i + 1,  1, ak_tol);          // Buldge Chasing
-    matrix( Eigen::seq(i + 2, i+3), i) = Matrix::Zero(2, 1);                      // Set Round off errors to 0
+    matrix(Eigen::seqN(i + 2, 2), i) = Matrix::Zero(2, 1);                      // Set Round off errors to 0
   }
   // Maybe Givens?
   ApplyHouseholder(matrix(Eigen::seq(n-2, n-1), n-3), matrix(Eigen::all, Eigen::lastN(3)), n - 2, 1, ak_tol);
@@ -415,24 +414,22 @@ void ReverseDoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
   MatrixType& matrix = const_cast<MatrixType &>(a_matrix);
   int n = a_matrix.rows();
   std::vector<typename Derived::Scalar> shift =
-      DoubleShiftParameter<>(a_matrix(Eigen::seqN(0, 2), Eigen::seqN(0, 2)));
-  if (shift.size() == 0) {    // TODO: remove this test
-    ImplicitQrStep<typename Derived::Scalar, false>(a_matrix, ak_tol);
-    return;
-  }
-  // Only first three entries of first col needed
-  Matrix m1 = a_matrix(Eigen::lastN(3), Eigen::all) *
-    a_matrix(Eigen::all, a_matrix.rows() -1) + shift.at(0) *
-    a_matrix(Eigen::lastN(3), 0) + shift.at(1) * Matrix::Identity(3, 1);
-  Matrix p(3,3);                                                                  // Householder Matrix
-  ApplyReverseHouseholder<>(m1, matrix, n - 1, 0, ak_tol);                                             // Calc initial Step
-  for (int i = 0; i < n - 3; ++i) {
-    ApplyReverseHouseholder<>(matrix(Eigen::seqN(n - i - 1, 3), n - i),
-        matrix(Eigen::all, Eigen::seq(0, n - i - 1)), n - i - 1,  1, ak_tol);          // Buldge Chasing
-    matrix(n - i, Eigen::seq(n - i - 3, n - i - 2)) = Matrix::Zero(1, 2);                      // Set Round off errors to 0
+      DoubleShiftParameter<>(a_matrix(Eigen::seqN(0, 2), Eigen::seqN(0, 2)), 0);
+//  if (shift.size() == 0) {    // TODO: remove this test
+//    ImplicitQrStep<typename Derived::Scalar, false>(a_matrix, ak_tol);
+//    return;
+//  }
+  // Only last three entries of last row needed
+  Matrix m1 = a_matrix(n - 1, Eigen::all) * a_matrix(Eigen::all,
+      Eigen::lastN(3)) + shift.at(0) * a_matrix(n - 1, Eigen::lastN(3));
+  m1(0, 2) += shift.at(1);
+  ApplyReverseHouseholder<>(m1.transpose(), matrix, n - 3, 0, ak_tol);                                  // Calc initial Step
+  for (int i = n - 1; i > 2; --i) {
+    ApplyReverseHouseholder<>(matrix(i, Eigen::seqN(i - 3, 3)).transpose(),
+        matrix(Eigen::all, Eigen::seq(i - 3, n -1)), i - 3,  1, ak_tol);          // Buldge Chasing
   }
   // Maybe Givens?
-  ApplyReverseHouseholder(matrix(Eigen::seqN(0, 2), 2), matrix(Eigen::seqN(0,3), Eigen::all), 0, 1, ak_tol);
+  ApplyReverseHouseholder(matrix(2, Eigen::seqN(0, 2)), matrix(Eigen::seqN(0,3), Eigen::all), 0, 1, ak_tol);
 }
 
 
