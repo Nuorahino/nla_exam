@@ -32,7 +32,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
 //    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-6);
     RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, false);
 //    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, true);
-//    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, false);
+    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, false);
 //    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, false, 1e-6);
   }
 
