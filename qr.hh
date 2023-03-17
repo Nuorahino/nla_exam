@@ -36,6 +36,7 @@ template<class Derived, class Derived2>
 void ApplyHouseholder(const Eigen::MatrixBase<Derived2> &ak_x,
                       const Eigen::MatrixBase<Derived> &a_matrix,
                       const long a_start,
+                      const long a_end,
                       const double ak_tol = 1e-12) {
   typedef typename Derived::Scalar T;
   typedef Eigen::MatrixBase<Derived> MatrixType;
@@ -51,7 +52,7 @@ void ApplyHouseholder(const Eigen::MatrixBase<Derived2> &ak_x,
   w(0) = ak_x(0) + alpha;
   if (w.squaredNorm() < ak_tol) return;
   T beta = 2 / w.squaredNorm();
-  for(int i = 0; i < a_matrix.cols(); ++i) {
+  for(int i = a_start - 1; i < a_matrix.cols(); ++i) {
     alpha = beta * w.dot(a_matrix(Eigen::seqN(a_start, n),i));
     matrix(Eigen::seqN(a_start, n),i) -= alpha * w;
   }
@@ -65,6 +66,7 @@ template<class Derived, class Derived2>
 void ApplyReverseHouseholder(const Eigen::MatrixBase<Derived2> &ak_x,
                              const Eigen::MatrixBase<Derived> &a_matrix,
                              const long a_start,
+                             const long a_end,
                              const double ak_tol = 1e-12) {
   typedef typename Derived::Scalar T;
   typedef Eigen::MatrixBase<Derived> MatrixType;
@@ -84,8 +86,7 @@ void ApplyReverseHouseholder(const Eigen::MatrixBase<Derived2> &ak_x,
     alpha = beta * w.dot(a_matrix(Eigen::seqN(a_start, n),i));
     matrix(Eigen::seqN(a_start, n),i) -= alpha * w;
   }
-  //for(int i = 0; i < a_matrix.rows(); ++i) {
-  for(int i = 0; i < a_start + 4 && i < a_matrix.rows(); ++i) {
+  for(int i = 0; i < a_end; ++i) {
     alpha = beta * a_matrix(i, Eigen::seqN(a_start, n)) * w;
     matrix(i, Eigen::seqN(a_start, n)) -= alpha * w.adjoint().eval();
   }
@@ -106,7 +107,7 @@ void HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
 
   for (int i = 0; i < matrix.rows() - 2; ++i) {
     ApplyHouseholder(matrix(Eigen::lastN(a_matrix.rows() - i - 1), i),
-        matrix, i + 1, ak_tol);
+        matrix, i + 1, a_matrix.rows(), ak_tol);
     matrix(Eigen::seqN(i + 2, a_matrix.rows() - i - 2), i) =
       MatrixType::Zero(a_matrix.rows() - i - 2, 1);
   }
@@ -389,14 +390,14 @@ void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
   Matrix m1 = a_matrix(Eigen::seqN(0,3), Eigen::all) *
     a_matrix(Eigen::all, 0) + shift.at(0) *
     a_matrix(Eigen::seqN(0,3), 0) + shift.at(1) * Matrix::Identity(3, 1);
-  ApplyHouseholder<>(m1, matrix, 0, ak_tol);                                             // Calc initial Step
+  ApplyHouseholder<>(m1, matrix, 0, 3, ak_tol);                                             // Calc initial Step
   for (int i = 0; i < n - 3; ++i) {
     ApplyHouseholder<>(matrix(Eigen::seqN(i + 1, 3), i),
-        matrix, i + 1, ak_tol);          // Buldge Chasing
+        matrix, i + 1, i + 4, ak_tol);          // Buldge Chasing
     matrix(Eigen::seqN(i + 2, 2), i) = Matrix::Zero(2, 1);                      // Set Round off errors to 0
   }
   // Maybe Givens?
-  ApplyHouseholder(matrix(Eigen::seqN(n-2, 2), n-3), matrix, n - 2, ak_tol);
+  ApplyHouseholder(matrix(Eigen::seqN(n-2, 2), n-3), matrix, n - 2, n, ak_tol);
 }
 
 template <class Derived>
@@ -416,14 +417,15 @@ void ReverseDoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
   Matrix m1 = a_matrix(n - 1, Eigen::all) * a_matrix(Eigen::all,
       Eigen::lastN(3)) + shift.at(0) * a_matrix(n - 1, Eigen::lastN(3));
   m1(0, 2) += shift.at(1);
-  ApplyReverseHouseholder<>(m1.transpose(), matrix, n - 3, ak_tol);                                  // Calc initial Step
+  ApplyReverseHouseholder<>(m1.transpose(), matrix, n - 3, n, ak_tol);                                  // Calc initial Step
   for (int i = n - 1; i > 2; --i) {
     ApplyReverseHouseholder<>(matrix(i, Eigen::seqN(i - 3, 3)).transpose(),
-        matrix, i - 3, ak_tol);          // Buldge Chasing
+        matrix, i - 3, //std::min(i + 1, n), ak_tol);          // Buldge Chasing
+        i + 1, ak_tol);          // Buldge Chasing
     matrix(i, Eigen::seqN(i - 3, 2)) = Matrix::Zero(1, 2);                      // Set Round off errors to 0
   }
   // Maybe Givens?
-  ApplyReverseHouseholder(matrix(2, Eigen::seqN(0, 2)), matrix, 0, ak_tol);
+  ApplyReverseHouseholder(matrix(2, Eigen::seqN(0, 2)), matrix, 0, 3, ak_tol);
 }
 
 
