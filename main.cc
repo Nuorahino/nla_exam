@@ -26,7 +26,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
   std::cout << "start: " << start << std::endl;
   std::cout << "max_size: " << max_size << std::endl;
   int seed = 28;
-  for( int i = start; i < max_size; ++i ) {
+  for( int i = start; i <= max_size; ++i ) {
     std::cout << "Test n = " << i << std::endl;
 //    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true);
 //    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-6);
