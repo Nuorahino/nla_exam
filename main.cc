@@ -8,7 +8,7 @@
 #include "test.hh"
 
 // Maybe use std::optional instead
-int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
+int main(int argc, char** argv) {
   std::string filename = GetFileName();
   std::string basedir = "/home/georg/uni/9_sem22-23/nla/exam/";
 
@@ -31,8 +31,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv) {
 //    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true);
 //    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-6);
     RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, false);
-//    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, true);
-    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, false);
+//   RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, true);
+//   RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, false);
 //    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, false, 1e-6);
   }
 

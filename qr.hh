@@ -2,7 +2,6 @@
 #define QR_HH_
 
 /*
- * TODO: fully optimize householder in double shift (smaller matrix passed)
  * TODO: optimize for eigen (noalias)
  * TODO: include the deflation in the step ?
  * TODO: use threads
@@ -36,7 +35,7 @@ template<class Derived, class Derived2>
 void ApplyHouseholder(const Eigen::MatrixBase<Derived2> &ak_x,
                       const Eigen::MatrixBase<Derived> &a_matrix,
                       const long a_start,
-                      const long a_end,
+                      const long a_start_row,
                       const double ak_tol = 1e-12) {
   typedef typename Derived::Scalar T;
   typedef Eigen::MatrixBase<Derived> MatrixType;
@@ -52,13 +51,13 @@ void ApplyHouseholder(const Eigen::MatrixBase<Derived2> &ak_x,
   w(0) = ak_x(0) + alpha;
   if (w.squaredNorm() < ak_tol) return;
   T beta = 2 / w.squaredNorm();
-  for(int i = a_start - 1; i < a_matrix.cols(); ++i) {
-    alpha = beta * w.dot(a_matrix(Eigen::seqN(a_start, n),i));
-    matrix(Eigen::seqN(a_start, n),i) -= alpha * w;
+  for(int i = a_start; i < a_matrix.cols(); ++i) {
+    alpha = beta * w.dot(a_matrix(Eigen::seqN(a_start_row, n), i));
+    matrix(Eigen::seqN(a_start_row, n),i) -= alpha * w;
   }
   for(int i = 0; i < a_matrix.rows(); ++i) {
-    alpha = beta * a_matrix(i, Eigen::seqN(a_start, n)) * w;
-    matrix(i, Eigen::seqN(a_start, n)) -= alpha * w.adjoint().eval();
+    alpha = beta * a_matrix(i, Eigen::seqN(a_start_row, n)) * w;
+    matrix(i, Eigen::seqN(a_start_row, n)) -= alpha * w.adjoint().eval();
   }
 }
 
@@ -107,7 +106,7 @@ void HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
 
   for (int i = 0; i < matrix.rows() - 2; ++i) {
     ApplyHouseholder(matrix(Eigen::lastN(a_matrix.rows() - i - 1), i),
-        matrix, i + 1, a_matrix.rows(), ak_tol);
+        matrix, i, i + 1, ak_tol);
     matrix(Eigen::seqN(i + 2, a_matrix.rows() - i - 2), i) =
       MatrixType::Zero(a_matrix.rows() - i - 2, 1);
   }
@@ -131,9 +130,9 @@ void HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
  */
 template <class DataType, class Derived> inline
 std::enable_if_t<std::is_arithmetic<DataType>::value, DataType>
-WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
+WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix, const bool a_first = true) {
   DataType d = (ak_matrix(0, 0) - ak_matrix(1, 1)) / 2.0;
-  if (d >= 0) {
+  if ((d >=  0 && a_first) || (!a_first && d <= 0)) {
     return ak_matrix(1, 1) + d - std::sqrt(d * d + ak_matrix(1, 0) *
         ak_matrix(1, 0));
   } else {
@@ -144,16 +143,23 @@ WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
 
 template <class DataType, class Derived>
 std::enable_if_t<IsComplex<DataType>(), DataType>
-WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
+WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix, const bool a_first = true) {
     DataType trace = ak_matrix.trace();
     DataType tmp = std::sqrt(trace * trace - 4.0 * ak_matrix.determinant());
     DataType ev1 = (trace + tmp) / 2.0;
     DataType ev2 = (trace - tmp) / 2.0;
-  if (std::abs(ev1 - ak_matrix(1, 1)) < std::abs(ev2 - ak_matrix(1, 1))) {        // return the nearest eigenvalue
-    return ev1;
-  } else {
-    return ev2;
-  }
+
+    DataType entry;
+    if (a_first) {
+      entry = ak_matrix(1, 1);
+    } else {
+      entry = ak_matrix(0, 0);
+    }
+      if (std::abs(ev1 - entry) < std::abs(ev2 - entry)) {        // return the nearest eigenvalue
+        return ev1;
+      } else {
+        return ev2;
+      }
 }
 
 
@@ -163,17 +169,14 @@ WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
  *  - ak_k:     Index of upper row in the rotation
  *  - ak_c:       Parameter 'c' in the givens rotation
  *  - ak_s:       Parameter 's' in the givens rotation
- *  - a_buldge:  Current Value of the buldge
  */
 template <class DataType, bool is_symmetric, bool is_first, bool is_last,
          class Derived>
 std::enable_if_t<is_symmetric && std::is_arithmetic<DataType>::value, void>
 ApplyGivens(const Eigen::MatrixBase<Derived> &a_matrix, const int ak_k,
-             const DataType ak_c, const DataType ak_s, [[maybe_unused]] DataType &a_buldge) {
+            const DataType ak_c, const DataType ak_s) {
   Eigen::MatrixBase<Derived>& matrix =
     const_cast<Eigen::MatrixBase<Derived>&>(a_matrix);
-//  DataType alpha;
-//  DataType beta;
   Eigen::Matrix<typename Derived::Scalar, 2, 2> Q;
   Q(0, 0) = ak_c;
   Q(1, 1) = ak_c;
@@ -182,36 +185,20 @@ ApplyGivens(const Eigen::MatrixBase<Derived> &a_matrix, const int ak_k,
 
   // Previous Column
   if constexpr (!is_first) {
-  matrix(Eigen::seq(ak_k, ak_k + 1), ak_k -1) = Q.adjoint() * matrix(Eigen::seq(ak_k, ak_k + 1), ak_k -1);
-  matrix(ak_k -1, Eigen::seq(ak_k, ak_k + 1)) = matrix(ak_k - 1, Eigen::seq(ak_k, ak_k + 1)) * Q;
-  matrix(ak_k -1, ak_k + 1) = 0;
-  matrix(ak_k + 1, ak_k -1) = 0;
-//    alpha = matrix(ak_k, ak_k - 1);
-//    beta = a_buldge;
-//    matrix(ak_k, ak_k - 1) = (ak_c * alpha) + (ak_s * beta);
-//    a_buldge = -ak_s * alpha + ak_c * beta;
+    matrix(Eigen::seq(ak_k, ak_k + 1), ak_k -1) = Q.adjoint() * matrix(Eigen::seq(ak_k, ak_k + 1), ak_k -1);
+    matrix(ak_k -1, Eigen::seq(ak_k, ak_k + 1)) = matrix(ak_k - 1, Eigen::seq(ak_k, ak_k + 1)) * Q;
+//    matrix(ak_k -1, ak_k + 1) = 0;
+//    matrix(ak_k + 1, ak_k -1) = 0;
   }
 
   // Center Block
-  matrix(Eigen::seq(ak_k, ak_k +1), Eigen::seq(ak_k, ak_k +1)) = Q.adjoint() * matrix(Eigen::seq(ak_k, ak_k +1), Eigen::seq(ak_k, ak_k +1));
-  matrix(Eigen::seq(ak_k, ak_k +1), Eigen::seq(ak_k, ak_k +1)) = matrix(Eigen::seq(ak_k, ak_k +1), Eigen::seq(ak_k, ak_k +1)) * Q;
-//  alpha = matrix(ak_k, ak_k);
-//  DataType alpha_2 = matrix(ak_k + 1, ak_k + 1);
-//  beta = matrix(ak_k + 1, ak_k);
-//  matrix(ak_k, ak_k) = ak_c * ak_c * alpha + ak_s * ak_s * alpha_2 +
-//    2.0 * ak_c * ak_s * beta;
-//  matrix(ak_k + 1, ak_k) = -ak_s * (ak_c * alpha + ak_s * beta) +
-//    ak_c * (ak_c * beta + ak_s * alpha_2);
-//  matrix(ak_k + 1, ak_k + 1) = ak_c * ak_c * alpha_2 + ak_s * ak_s * alpha -
-//    2.0 * ak_c * ak_s * beta;
+  matrix(Eigen::seq(ak_k, ak_k + 1), Eigen::seq(ak_k, ak_k + 1)) = Q.adjoint() * matrix(Eigen::seq(ak_k, ak_k +1), Eigen::seq(ak_k, ak_k +1));
+  matrix(Eigen::seq(ak_k, ak_k + 1), Eigen::seq(ak_k, ak_k + 1)) = matrix(Eigen::seq(ak_k, ak_k +1), Eigen::seq(ak_k, ak_k +1)) * Q;
 
   // Next Column
   if constexpr (!is_last) {
-  matrix(Eigen::seq(ak_k, ak_k + 1), ak_k + 2) = Q.adjoint() * matrix(Eigen::seq(ak_k, ak_k + 1), ak_k + 2);
-  matrix(ak_k + 2, Eigen::seq(ak_k, ak_k + 1)) = matrix(ak_k + 2, Eigen::seq(ak_k, ak_k + 1)) * Q;
-//    beta = matrix(ak_k + 2, ak_k + 1);
-//    a_buldge = ak_s * beta;
-//    matrix(ak_k + 2, ak_k + 1) = ak_c * beta;
+    matrix(Eigen::seq(ak_k, ak_k + 1), ak_k + 2) = Q.adjoint() * matrix(Eigen::seq(ak_k, ak_k + 1), ak_k + 2);
+    matrix(ak_k + 2, Eigen::seq(ak_k, ak_k + 1)) = matrix(ak_k + 2, Eigen::seq(ak_k, ak_k + 1)) * Q;
   }
   return;
 }
@@ -283,45 +270,40 @@ ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
                const double = 1e-12) {
   DataType shift = WilkinsonShift<DataType>(a_matrix(Eigen::lastN(2),
         Eigen::lastN(2)));
-  DataType buldge = 0;
   int n = a_matrix.rows();
   auto entries = GetGivensEntries<>(a_matrix(0, 0) - shift, a_matrix(1, 0));
   if constexpr (is_symmetric) {
     switch (n) {                                                                  // Initial step
       case 2:
         ApplyGivens<DataType, is_symmetric, true, true>(a_matrix, 0,
-            entries.at(0), entries.at(1), buldge);
+            entries.at(0), entries.at(1));
         return;
       case 3:
         ApplyGivens<DataType, is_symmetric, true, false>(a_matrix, 0,
-            entries.at(0), entries.at(1), buldge);
-        //entries = GetGivensEntries<>(a_matrix(1, 0), buldge);
+            entries.at(0), entries.at(1));
         entries = GetGivensEntries<>(a_matrix(1, 0), a_matrix(2,0));
         ApplyGivens<DataType, is_symmetric, false, true>(a_matrix, 1,
-            entries.at(0), entries.at(1), buldge);
+            entries.at(0), entries.at(1));
         return;
       default:
         ApplyGivens<DataType, is_symmetric, true, false>(a_matrix, 0,
-            entries.at(0), entries.at(1), buldge);
+            entries.at(0), entries.at(1));
     }
     for (int k = 1; k < n - 2; ++k) {                                             // Buldge Chasing
-      //entries = GetGivensEntries<>(a_matrix(k, k-1), buldge);
       entries = GetGivensEntries<>(a_matrix(k, k-1), a_matrix(k+1, k-1));
 //      if( d(gen)) {
 //       const_cast<typename Derived::Scalar&>(a_matrix(k + 2, k + 1)) *= -1;
 //       const_cast<typename Derived::Scalar&>(a_matrix(k + 1, k + 2)) *= -1;
 //      }
       ApplyGivens<DataType, is_symmetric, false, false>(a_matrix, k,
-          entries.at(0), entries.at(1), buldge);
+          entries.at(0), entries.at(1));
     }
-    //entries = GetGivensEntries<>(a_matrix(n-2, n-3), buldge);
     entries = GetGivensEntries<>(a_matrix(n-2, n-3), a_matrix(n-1, n-3));
     ApplyGivens<DataType, is_symmetric, false, true>(a_matrix, n-2,
-        entries.at(0), entries.at(1), buldge);
+        entries.at(0), entries.at(1));
   } else {
     // TODO improve readability
     if (entries.size() == 2) entries.push_back(entries.at(1));
-    // Check Complex Version
     ApplyGivens<DataType, is_symmetric>(a_matrix, 0, entries.at(0),
         entries.at(1), entries.at(2));
     for (int k = 1; k < n - 1; ++k) {                                             // Buldge Chasing
@@ -333,8 +315,74 @@ ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
       const_cast<Eigen::MatrixBase<Derived>&>(a_matrix)(k + 1, k - 1) = 0.0;
     }
   }
+//  std::cout << a_matrix.diagonal(-1) << std::endl
+//            << "diag: " << std::endl
+//            << a_matrix.diagonal() << std::endl
+//            << "superdiag: " << std::endl
+//            << a_matrix.diagonal(1) << std::endl
+//            << std::endl << std::endl;
   return;
 }
+
+template <class DataType, bool is_symmetric, typename Derived>
+void
+ReverseImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
+               const double = 1e-12) {
+  DataType shift = WilkinsonShift<DataType>(a_matrix(Eigen::seqN(0, 2),
+        Eigen::seqN(0, 2)), false);
+  int n = a_matrix.rows();
+  //std::cout << "shift: " << shift << std::endl;
+  auto entries = GetGivensEntries<>(a_matrix(n-1, n-1) - shift, a_matrix(n-1, n-2));
+  if constexpr (is_symmetric) {
+//  if constexpr (false) {
+    switch (n) {                                                                  // Initial step
+      case 2:
+        ApplyGivens<DataType, is_symmetric, true, true>(a_matrix, 0,
+            entries.at(0), -entries.at(1));
+        return;
+      case 3:
+        ApplyGivens<DataType, is_symmetric, false, true>(a_matrix, 1,
+            entries.at(0), -entries.at(1));
+        entries = GetGivensEntries<>(a_matrix(2, 1), a_matrix(2,0));
+        ApplyGivens<DataType, is_symmetric, true, false>(a_matrix, 0,
+            entries.at(0), -entries.at(1));
+        return;
+      default:
+        ApplyGivens<DataType, is_symmetric, false, true>(a_matrix, n - 2,
+            entries.at(0), -entries.at(1));
+    }
+    for (int k = n - 2 ; k >= 2; --k) {                                             // Buldge Chasing
+      entries = GetGivensEntries<>(a_matrix(k + 1, k), a_matrix(k + 1, k - 1));
+//      if( d(gen)) {
+//       const_cast<typename Derived::Scalar&>(a_matrix(k + 2, k + 1)) *= -1;
+//       const_cast<typename Derived::Scalar&>(a_matrix(k + 1, k + 2)) *= -1;
+//      }
+      ApplyGivens<DataType, is_symmetric, false, false>(a_matrix, k - 1,
+          entries.at(0), -entries.at(1));
+    }
+    entries = GetGivensEntries<>(a_matrix(2, 1), a_matrix(2, 0));
+    ApplyGivens<DataType, is_symmetric, true, false>(a_matrix, 0,
+        entries.at(0), -entries.at(1));
+  } else {
+//    std::cout << "Non symmetric solver" << std::endl;
+    // TODO improve readability
+    if (entries.size() == 2) entries.push_back(entries.at(1));
+    // Check Complex Version
+    ApplyGivens<DataType, is_symmetric>(a_matrix, n-2, entries.at(0),
+        -entries.at(1), -entries.at(2));
+    for (int k = n - 2; k >= 1 ; --k) {                                             // Buldge Chasing
+      entries = GetGivensEntries<>(a_matrix(k + 1, k), a_matrix(k + 1, k - 1));
+      if (entries.size() == 2) entries.push_back(entries.at(1));
+      ApplyGivens<DataType, is_symmetric>(a_matrix, k-1, entries.at(0),
+          -entries.at(1), -entries.at(2));
+      // TODO include this into the apply givens?
+      const_cast<Eigen::MatrixBase<Derived>&>(a_matrix)(k + 1, k - 1) = 0.0;
+    }
+  }
+  //std::cout << a_matrix << std::endl << std::endl;
+  return;
+}
+
 
 
 /* Get double shift parameters for a given 2x2 Matrix
@@ -390,14 +438,14 @@ void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
   Matrix m1 = a_matrix(Eigen::seqN(0,3), Eigen::all) *
     a_matrix(Eigen::all, 0) + shift.at(0) *
     a_matrix(Eigen::seqN(0,3), 0) + shift.at(1) * Matrix::Identity(3, 1);
-  ApplyHouseholder<>(m1, matrix, 0, 3, ak_tol);                                             // Calc initial Step
+  ApplyHouseholder<>(m1, matrix, 0, 0, ak_tol);                                             // Calc initial Step
   for (int i = 0; i < n - 3; ++i) {
     ApplyHouseholder<>(matrix(Eigen::seqN(i + 1, 3), i),
-        matrix, i + 1, i + 4, ak_tol);          // Buldge Chasing
+        matrix, i, i + 1, ak_tol);          // Buldge Chasing
     matrix(Eigen::seqN(i + 2, 2), i) = Matrix::Zero(2, 1);                      // Set Round off errors to 0
   }
   // Maybe Givens?
-  ApplyHouseholder(matrix(Eigen::seqN(n-2, 2), n-3), matrix, n - 2, n, ak_tol);
+  ApplyHouseholder(matrix(Eigen::seqN(n-2, 2), n-3), matrix, n - 3, n-2, ak_tol);
 }
 
 template <class Derived>
@@ -420,8 +468,7 @@ void ReverseDoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
   ApplyReverseHouseholder<>(m1.transpose(), matrix, n - 3, n, ak_tol);                                  // Calc initial Step
   for (int i = n - 1; i > 2; --i) {
     ApplyReverseHouseholder<>(matrix(i, Eigen::seqN(i - 3, 3)).transpose(),
-        matrix, i - 3, //std::min(i + 1, n), ak_tol);          // Buldge Chasing
-        i + 1, ak_tol);          // Buldge Chasing
+        matrix, i - 3, i + 1, ak_tol);          // Buldge Chasing
     matrix(i, Eigen::seqN(i - 3, 2)) = Matrix::Zero(1, 2);                      // Set Round off errors to 0
   }
   // Maybe Givens?
@@ -502,7 +549,7 @@ std::vector<DataType>
 CalcEigenvaluesFromSchur(const Eigen::MatrixBase<Derived>& ak_matrix,
                          const bool ak_matrix_is_diagonal = false) {
   std::vector<DataType> res(ak_matrix.rows());
-  if (ak_matrix_is_diagonal) {
+  if (ak_matrix_is_diagonal || ak_matrix.rows() == 1) {
     for (int i = 0; i < ak_matrix.rows(); ++i) {
       res.at(i) = ak_matrix(i, i);
     }
@@ -551,6 +598,7 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
   int begin = 0;
   int end = a_matrix.rows() - 1;
   int end_of_while = 0;
+  bool tridiagonal_result = true;
   std::vector<std::complex<double>> res;
   void (*step)(const Eigen::MatrixBase<StepMatrix> &, const double);
   bool (*deflate)(const Eigen::MatrixBase<Derived> &, int &, int &,
@@ -558,11 +606,13 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
   if constexpr (std::is_arithmetic<typename Derived::Scalar>::value &&
       !ak_is_hermitian) {
       end_of_while = 1;
-      //step = &DoubleShiftQrStep<StepMatrix>;
+//      step = &DoubleShiftQrStep<StepMatrix>;
       step = &ReverseDoubleShiftQrStep<StepMatrix>;
       deflate = &DeflateSchur<Derived>;
+      tridiagonal_result = false;
   } else {
     step = &ImplicitQrStep<typename MatrixType::Scalar, ak_is_hermitian,
+//    step = &ReverseImplicitQrStep<typename MatrixType::Scalar, ak_is_hermitian,
          StepMatrix>;
     deflate = &DeflateDiagonal<Derived>;
   }
@@ -576,7 +626,7 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
     }
   }
   // Or form Diagonal?
-  return CalcEigenvaluesFromSchur<DataType>(a_matrix, ak_is_hermitian);
+  return CalcEigenvaluesFromSchur<DataType>(a_matrix, tridiagonal_result);
 }
 
 /* Calculate the eigenvalues of a Matrix using the QR decomposition
@@ -585,7 +635,7 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
  * - ak_tol: Tolerance for considering a value 0
  * Return: Unordered Vector of (complex) eigenvalues
  */
-template <typename Derived, class DataType = double>
+template <bool IsHermitian, typename Derived, class DataType = double>
 typename std::enable_if_t<std::is_arithmetic<typename Derived::Scalar>::value,
           std::vector<std::complex<DataType>>>
 QrMethod(const Eigen::MatrixBase<Derived> &ak_matrix,
@@ -595,18 +645,19 @@ QrMethod(const Eigen::MatrixBase<Derived> &ak_matrix,
       "Matrix Elements must be convertible to DataType");
   typedef Eigen::Matrix<DataType, -1, -1> Matrix;
 
-  const bool k_is_symmetric = IsHermitian(ak_matrix, ak_tol);
   Matrix A = ak_matrix;
-  //HessenbergTransformation<>(A, ak_tol, k_is_symmetric);
-  if (k_is_symmetric) {                                                           // Necessary because it is a template parameter
-    return QrIterationHessenberg<std::complex<DataType>, true>(A, ak_tol);
-  } else {
-    return QrIterationHessenberg<std::complex<DataType>, false>(A, ak_tol);
-  }
+//  const bool k_is_symmetric = IsHermitian(ak_matrix, ak_tol);
+//  HessenbergTransformation<>(A, ak_tol, k_is_symmetric);
+//  if (k_is_symmetric) {                                                           // Necessary because it is a template parameter
+//    return QrIterationHessenberg<std::complex<DataType>, true>(A, ak_tol);
+//  } else {
+//    return QrIterationHessenberg<std::complex<DataType>, false>(A, ak_tol);
+//  }
+    return QrIterationHessenberg<std::complex<DataType>, IsHermitian>(A, ak_tol);
 }
 
 
-template <typename Derived, class DataType = std::complex<double>>
+template <bool IsHermitian, typename Derived, class DataType = std::complex<double>>
 typename std::enable_if_t<IsComplex<typename Derived::Scalar>(),
   std::vector<DataType>> QrMethod(const Eigen::MatrixBase<Derived> &ak_matrix,
                                   const double ak_tol = 1e-12) {
@@ -615,15 +666,16 @@ typename std::enable_if_t<IsComplex<typename Derived::Scalar>(),
       "Matrix Elements must be convertible to DataType");
   typedef Eigen::Matrix<DataType, -1, -1> Matrix;
 
-  const bool k_is_hermitian = IsHermitian(ak_matrix, ak_tol);
   Matrix A = ak_matrix;
+//  const bool k_is_hermitian = IsHermitian(ak_matrix, ak_tol);
 //  HessenbergTransformation<>(A, ak_tol, k_is_hermitian);
 
-  if (k_is_hermitian) {                                                           // Necessary because it is a template parameter
-    return QrIterationHessenberg<DataType, true>(A.real(), ak_tol);
-  } else {
-    return QrIterationHessenberg<DataType, false>(A, ak_tol);
-  }
+//  if (k_is_hermitian) {                                                           // Necessary because it is a template parameter
+//    return QrIterationHessenberg<DataType, true>(A.real(), ak_tol);
+//  } else {
+//    return QrIterationHessenberg<DataType, false>(A, ak_tol);
+//  }
+  return QrIterationHessenberg<DataType, IsHermitian>(A, ak_tol);
 }
 
 } // namespace nla_exam
