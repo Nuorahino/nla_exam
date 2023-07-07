@@ -31,36 +31,62 @@ namespace nla_exam {
  * - a_start: Index of the first row of the Householder Vector
  * Return: void
  */
+
+template<class Derived, class T = typename Derived::Scalar>
+Eigen::Vector<T, -1> GetHouseholderVector(const Eigen::MatrixBase<Derived> &ak_x,
+                          const double ak_tol = 1e-12) {
+  //typedef typename Derived::Scalar T;
+
+  Eigen::Vector<T, -1> w = ak_x;
+  long n = w.rows();
+  T t = w(Eigen::lastN(n-1)).squaredNorm();
+  if (std::abs(t) < ak_tol) {
+    w(0) = 1;
+    std::cout << "tail is zero" << std::endl;
+  } else {
+    T s = std::sqrt(w(0) * w(0) + t);
+    T angle;
+    if constexpr (IsComplex<typename Derived::Scalar>()) {
+      angle = std::polar(1.0, arg(w(0)));                                       // Choise to avoid loss of significance
+    } else {
+      if (w(0) < 0) angle = -1;
+      else angle = 1;
+    }
+    w(0) = w(0) + s * angle;
+  }
+  return w;
+}
+
+
 template<class Derived, class Derived2>
-void ApplyHouseholder(const Eigen::MatrixBase<Derived2> &ak_x,
-                      const Eigen::MatrixBase<Derived> &a_matrix,
-                      const long a_start,
-                      const long a_start_row,
-                      const double ak_tol = 1e-12) {
+void ApplyHouseholderRight(const Eigen::MatrixBase<Derived2> &ak_w,
+                           const Eigen::MatrixBase<Derived> &a_matrix) {
   typedef typename Derived::Scalar T;
   typedef Eigen::MatrixBase<Derived> MatrixType;
   MatrixType& matrix = const_cast<MatrixType&>(a_matrix);
-  Eigen::Vector<T, -1> w = ak_x;
-  long n = w.rows();
-  T alpha = w.norm();
-  if constexpr (IsComplex<typename Derived::Scalar>()) {
-    alpha *= std::polar(1.0, arg(w(0)));                                       // Choise to avoid loss of significance
-  } else {
-    if (w(0) < 0) alpha *= -1;
-  }
-  w(0) = ak_x(0) + alpha;
-  if (w.squaredNorm() < ak_tol) return;
-  T beta = 2 / w.squaredNorm();
-  for(int i = a_start; i < a_matrix.cols(); ++i) {
-    alpha = beta * w.dot(a_matrix(Eigen::seqN(a_start_row, n), i));
-    matrix(Eigen::seqN(a_start_row, n),i) -= alpha * w;
-  }
+
+  T beta = 2 / ak_w.squaredNorm();
   for(int i = 0; i < a_matrix.rows(); ++i) {
-    alpha = beta * a_matrix(i, Eigen::seqN(a_start_row, n)) * w;
-    matrix(i, Eigen::seqN(a_start_row, n)) -= alpha * w.adjoint().eval();
+    T tmp = beta * a_matrix(i, Eigen::all) * ak_w;
+    matrix(i, Eigen::all) -= tmp * ak_w.adjoint();
   }
+  return;
 }
 
+template<class Derived, class Derived2>
+void ApplyHouseholderLeft(const Eigen::MatrixBase<Derived2> &ak_w,
+                          const Eigen::MatrixBase<Derived> &a_matrix) {
+  typedef typename Derived::Scalar T;
+  typedef Eigen::MatrixBase<Derived> MatrixType;
+  MatrixType& matrix = const_cast<MatrixType&>(a_matrix);
+
+  T beta = 2 / ak_w.squaredNorm();
+  for(int i = 0; i < a_matrix.cols(); ++i) {
+    T tmp = beta * ak_w.dot(a_matrix(Eigen::all, i));           // w.dot(A) = w.adjoint() * A
+    matrix(Eigen::all,i) -= tmp * ak_w;
+  }
+  return;
+}
 template<class Derived, class Derived2>
 void ApplyReverseHouseholder(const Eigen::MatrixBase<Derived2> &ak_x,
                              const Eigen::MatrixBase<Derived> &a_matrix,
@@ -103,12 +129,14 @@ void HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
                               const bool a_is_hermitian = false) {
   typedef Eigen::MatrixBase<Derived> MatrixType;
   MatrixType& matrix = const_cast<MatrixType&>(a_matrix);
+  long n = a_matrix.rows();
 
   for (int i = 0; i < matrix.rows() - 2; ++i) {
-    ApplyHouseholder(matrix(Eigen::lastN(a_matrix.rows() - i - 1), i),
-        matrix, i, i + 1, ak_tol);
-    matrix(Eigen::seqN(i + 2, a_matrix.rows() - i - 2), i) =
-      MatrixType::Zero(a_matrix.rows() - i - 2, 1);
+    Eigen::Vector<typename Derived::Scalar, -1> w = GetHouseholderVector(matrix(
+                                  Eigen::lastN(n - i - 1), i), ak_tol);
+    ApplyHouseholderRight(w, matrix(Eigen::all, Eigen::lastN(n - i - 1)));
+    ApplyHouseholderLeft(w, matrix(Eigen::lastN(n - i - 1), Eigen::seq(i, n-1)));
+    matrix(Eigen::seqN(i + 2, n - i - 2), i) = MatrixType::Zero(n - i - 2, 1);
   }
   if constexpr (IsComplex<typename Derived::Scalar>()) {
     if (a_is_hermitian) {                                                         // Transform complex Hermitian Matrix to Real
@@ -133,11 +161,9 @@ std::enable_if_t<std::is_arithmetic<DataType>::value, DataType>
 WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix, const bool a_first = true) {
   DataType d = (ak_matrix(0, 0) - ak_matrix(1, 1)) / 2.0;
   if ((d >=  0 && a_first) || (!a_first && d <= 0)) {
-    return ak_matrix(1, 1) + d - std::sqrt(d * d + ak_matrix(1, 0) *
-        ak_matrix(1, 0));
+    return ak_matrix(1, 1) + d - std::hypot(d, ak_matrix(1,0));
   } else {
-    return ak_matrix(1, 1) + d + std::sqrt(d * d + ak_matrix(1, 0) *
-        ak_matrix(1, 0));
+    return ak_matrix(1, 1) + d + std::hypot(d, ak_matrix(1,0));
   }
 }
 
@@ -161,6 +187,7 @@ WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix, const bool a_first =
         return ev2;
       }
 }
+
 
 
 /* Applies a single givens rotation to a tridiagonal Matrix
@@ -214,8 +241,8 @@ ApplyGivens(const Eigen::MatrixBase<Derived> &a_matrix, const int ak_k,
   Eigen::Matrix<DataType, 2, 2> Q;
   Q(0, 0) = ak_c;
   Q(1, 1) = ak_c;
-  Q(0, 1) = ak_s;
-  Q(1, 0) = -ak_sconj;
+  Q(0, 1) = -ak_s;
+  Q(1, 0) = ak_sconj;
   int start = std::max(0, ak_k -1);
   long end = std::min(long{ak_k + 2}, long{matrix.rows() - 1});
   matrix(Eigen::seq(ak_k, ak_k+1), Eigen::seq(start, matrix.rows() -1)) =
@@ -238,22 +265,21 @@ std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
 GetGivensEntries(const DataType& ak_a, const DataType& ak_b) {
   std::vector<DataType> res(2);
   DataType r = std::hypot(ak_a, ak_b);
-  res.at(0) = ak_a / r;
-  res.at(1) = ak_b / r;
+  res.at(0) = std::abs(ak_a) / r;
+  res.at(1) = ak_b / r * std::copysign(1, ak_a);
   return res;
 }
 
 template<class DataType> inline
 std::enable_if_t<IsComplex<DataType>(), std::vector<DataType>>
 GetGivensEntries(const DataType& ak_a, const DataType& ak_b) {
-  assert(1 != 0);
   typedef typename DataType::value_type real;
   std::vector<DataType> res(3);
   real absa = std::abs(ak_a);
   real absb = std::abs(ak_b);
   real r = std::hypot(absa, absb);
   res.at(0) = absa / r;
-  res.at(1) = -ak_a / absa * (std::conj(ak_b) / r);
+  res.at(1) = std::polar(std::abs(ak_b) / r, std::arg(ak_a) - std::arg(ak_b));
   res.at(2) = std::conj(res.at(1));
   return res;
 }
@@ -435,17 +461,26 @@ void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
 //    return;
 //  }
   // Only first three entries of first col needed
+  Matrix matrix2 = matrix;
   Matrix m1 = a_matrix(Eigen::seqN(0,3), Eigen::all) *
     a_matrix(Eigen::all, 0) + shift.at(0) *
     a_matrix(Eigen::seqN(0,3), 0) + shift.at(1) * Matrix::Identity(3, 1);
-  ApplyHouseholder<>(m1, matrix, 0, 0, ak_tol);                                             // Calc initial Step
+  Eigen::Vector<typename Derived::Scalar, -1> w = GetHouseholderVector(m1, ak_tol);
+  long end = std::min(4, n);
+  ApplyHouseholderRight(w, matrix(Eigen::seqN(0, end), Eigen::seqN(0, 3)));
+  ApplyHouseholderLeft(w, matrix(Eigen::seqN(0, 3), Eigen::all));
   for (int i = 0; i < n - 3; ++i) {
-    ApplyHouseholder<>(matrix(Eigen::seqN(i + 1, 3), i),
-        matrix, i, i + 1, ak_tol);          // Buldge Chasing
+    Eigen::Vector<typename Derived::Scalar, -1> w = GetHouseholderVector(matrix(
+          Eigen::seqN(i + 1, 3), i), ak_tol);
+    end = std::min(i+4, n-1);
+    ApplyHouseholderRight(w, matrix(Eigen::seq(0, end), Eigen::seqN(i+1, 3)));
+    ApplyHouseholderLeft(w, matrix(Eigen::seqN(i+1, 3), Eigen::seq(i, n-1)));
     matrix(Eigen::seqN(i + 2, 2), i) = Matrix::Zero(2, 1);                      // Set Round off errors to 0
   }
   // Maybe Givens?
-  ApplyHouseholder(matrix(Eigen::seqN(n-2, 2), n-3), matrix, n - 3, n-2, ak_tol);
+  w = GetHouseholderVector(matrix(Eigen::lastN(2), n-3), ak_tol);
+  ApplyHouseholderRight(w, matrix(Eigen::all, Eigen::lastN(2)));
+  ApplyHouseholderLeft(w, matrix(Eigen::lastN(2), Eigen::lastN(3)));
 }
 
 template <class Derived>
@@ -606,8 +641,8 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
   if constexpr (std::is_arithmetic<typename Derived::Scalar>::value &&
       !ak_is_hermitian) {
       end_of_while = 1;
-//      step = &DoubleShiftQrStep<StepMatrix>;
-      step = &ReverseDoubleShiftQrStep<StepMatrix>;
+      step = &DoubleShiftQrStep<StepMatrix>;
+//      step = &ReverseDoubleShiftQrStep<StepMatrix>;
       deflate = &DeflateSchur<Derived>;
       tridiagonal_result = false;
   } else {
