@@ -297,13 +297,14 @@ template <class DataType, bool is_symmetric, typename Derived, typename Derived2
 void
 ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
                const Eigen::MatrixBase<Derived2> &a_q,
-               const std::vector<double> shifts,
+               const std::vector<DataType> shifts,
                const double = 1e-12) {
   Eigen::MatrixBase<Derived>& matrix =
     const_cast<Eigen::MatrixBase<Derived>&>(a_matrix);
   Eigen::MatrixBase<Derived2>& q =
     const_cast<Eigen::MatrixBase<Derived2>&>(a_q);
-  DataType shift = shifts.at(0);
+  DataType shift = WilkinsonShift<DataType>(a_matrix(Eigen::lastN(2),
+        Eigen::lastN(2)));
   int n = a_matrix.rows();
   auto entries = GetGivensEntries<>(a_matrix(0, 0) - shift, a_matrix(1, 0));
   if constexpr (is_symmetric) {
@@ -316,7 +317,7 @@ ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
       default:
         ApplyGivensLeft<DataType>(matrix(Eigen::seqN(0,2), Eigen::all), entries.at(0), entries.at(1));
         ApplyGivensRight<DataType>(matrix(Eigen::seqN(0, 3), Eigen::seqN(0, 2)), entries.at(0), entries.at(1));
-        ApplyGivensRight<DataType>(q(Eigen::all, Eigen::seqN(0, 2)), entries.at(0), entries.at(1));
+        ApplyGivensRight<DataType>(q(Eigen::seqN(0, 3), Eigen::seqN(0, 2)), entries.at(0), entries.at(1));
     }
     for (int k = 1; k < n - 2; ++k) {                                             // Buldge Chasing
       entries = GetGivensEntries<>(a_matrix(k, k-1), a_matrix(k+1, k-1));
@@ -326,7 +327,7 @@ ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
 //      }
       ApplyGivensLeft<DataType>(matrix(Eigen::seqN(k,2), Eigen::seq(k-1,n-1)), entries.at(0), entries.at(1));
       ApplyGivensRight<DataType>(matrix(Eigen::seq(0, k+2), Eigen::seqN(k, 2)), entries.at(0), entries.at(1));
-      ApplyGivensRight<DataType>(q(Eigen::all, Eigen::seqN(k, 2)), entries.at(0), entries.at(1));
+      ApplyGivensRight<DataType>(q(Eigen::seq(0, k+2), Eigen::seqN(k, 2)), entries.at(0), entries.at(1));
     matrix(k -1, k + 1) = 0;
     matrix(k + 1, k -1) = 0;
     }
@@ -464,15 +465,15 @@ void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
   typedef Eigen::MatrixBase<Derived> MatrixType;
   typedef Eigen::Matrix<typename Derived::Scalar, -1, -1> Matrix;
   MatrixType& matrix = const_cast<MatrixType &>(a_matrix);
-  MatrixType& q = const_cast<MatrixType &>(a_q);
   int n = a_matrix.rows();
-  std::vector<typename Derived::Scalar> shift = shifts;
-      //DoubleShiftParameter<>(a_matrix(Eigen::lastN(2), Eigen::lastN(2)));
+  std::vector<typename Derived::Scalar> shift =
+      DoubleShiftParameter<>(a_matrix(Eigen::lastN(2), Eigen::lastN(2)));
 //  if (shift.size() == 0) {    // TODO: remove this test
 //    ImplicitQrStep<typename Derived::Scalar, false>(a_matrix, ak_tol);
 //    return;
 //  }
   // Only first three entries of first col needed
+  Matrix matrix2 = matrix;
   Matrix m1 = a_matrix(Eigen::seqN(0,3), Eigen::all) *
     a_matrix(Eigen::all, 0) + shift.at(0) *
     a_matrix(Eigen::seqN(0,3), 0) + shift.at(1) * Matrix::Identity(3, 1);
@@ -480,21 +481,18 @@ void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
   long end = std::min(4, n);
   ApplyHouseholderRight(w, matrix(Eigen::seqN(0, end), Eigen::seqN(0, 3)));
   ApplyHouseholderLeft(w, matrix(Eigen::seqN(0, 3), Eigen::all));
-  ApplyHouseholderRight(w, q(Eigen::all, Eigen::seqN(0, 3)));
   for (int i = 0; i < n - 3; ++i) {
     Eigen::Vector<typename Derived::Scalar, -1> w = GetHouseholderVector(matrix(
           Eigen::seqN(i + 1, 3), i), ak_tol);
     end = std::min(i+4, n-1);
     ApplyHouseholderRight(w, matrix(Eigen::seq(0, end), Eigen::seqN(i+1, 3)));
     ApplyHouseholderLeft(w, matrix(Eigen::seqN(i+1, 3), Eigen::seq(i, n-1)));
-    ApplyHouseholderRight(w, q(Eigen::all, Eigen::seqN(i+1, 3)));
     matrix(Eigen::seqN(i + 2, 2), i) = Matrix::Zero(2, 1);                      // Set Round off errors to 0
   }
   // Maybe Givens?
   w = GetHouseholderVector(matrix(Eigen::lastN(2), n-3), ak_tol);
   ApplyHouseholderRight(w, matrix(Eigen::all, Eigen::lastN(2)));
   ApplyHouseholderLeft(w, matrix(Eigen::lastN(2), Eigen::lastN(3)));
-  ApplyHouseholderRight(w, matrix(Eigen::all, Eigen::lastN(2)));
 }
 
 template <class Derived>
@@ -649,22 +647,21 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
   int end_of_while = 0;
   bool tridiagonal_result = true;
   Eigen::MatrixXd q = Eigen::MatrixXd::Identity(a_matrix.rows(), a_matrix.cols());
-  Eigen::MatrixXd copy = a_matrix;
   std::vector<std::complex<double>> res;
-  void (*step)(const Eigen::MatrixBase<StepMatrix> &, const Eigen::MatrixBase<Eigen::Block<Eigen::Matrix<double, -1, -1>, -1, -1, false>>&, std::vector<double>, const double);
+  void (*step)(const Eigen::MatrixBase<StepMatrix> &, const Eigen::MatrixBase<Eigen::MatrixXd> &, std::vector<double>, const double);
   bool (*deflate)(const Eigen::MatrixBase<Derived> &, int &, int &,
                   const double);
   if constexpr (std::is_arithmetic<typename Derived::Scalar>::value &&
       !ak_is_hermitian) {
       end_of_while = 1;
-      step = &DoubleShiftQrStep<StepMatrix, Eigen::Block<Eigen::Matrix<double, -1, -1>, -1, -1, false>>;
+      step = &DoubleShiftQrStep<StepMatrix, Eigen::MatrixXd>;
 //      step = &ReverseDoubleShiftQrStep<StepMatrix>;
       deflate = &DeflateSchur<Derived>;
       tridiagonal_result = false;
   } else {
     step = &ImplicitQrStep<typename MatrixType::Scalar, ak_is_hermitian, StepMatrix,
 //    step = &ReverseImplicitQrStep<typename MatrixType::Scalar, ak_is_hermitian,
-        Eigen::Block<Eigen::Matrix<double, -1, -1>, -1, -1, false>>;
+         Eigen::MatrixXd>;
     deflate = &DeflateDiagonal<Derived>;
   }
   while (end_of_while < end) {
@@ -672,23 +669,13 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
       end = begin - 1;
       begin = 0;
     } else {
-//      DataType shift = WilkinsonShift<DataType>(a_matrix(Eigen::seqN(end-1, 2),
-//          Eigen::seqN(end-1, 2)));
-      std::vector<double> test =
-      DoubleShiftParameter<>(a_matrix(Eigen::lastN(2), Eigen::lastN(2)));
-      //test.push_back(shift);
+      DataType shift = WilkinsonShift<DataType>(a_matrix(Eigen::seqN(end-1, 2),
+          Eigen::lastN(end-1, 2)));
       step(const_cast<MatrixType&>(a_matrix)(Eigen::seq(begin, end),
-              Eigen::seq(begin, end)), q(Eigen::seq(begin, end), Eigen::seq(begin, end)), test,  ak_tol);
+              Eigen::seq(begin, end)), (Eigen::MatrixXd)q(Eigen::seq(begin, end), Eigen::seq(begin, end)), {shift},  ak_tol);
     }
   }
   // Or form Diagonal?
-  std::cout << q << std::endl;
-  std::cout << "uniform q?" << std::endl;
-  std::cout << q.adjoint() * q << std::endl << std::endl;
-  std::cout << "a matrix " << std::endl
-    << a_matrix << std::endl
-    << "new matrix" << std::endl
-    << q.adjoint() * copy * q << std::endl << std::endl;
   return CalcEigenvaluesFromSchur<DataType>(a_matrix, tridiagonal_result);
 }
 
