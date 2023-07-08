@@ -189,6 +189,15 @@ WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix, const bool a_first =
 }
 
 
+template <class DataType, bool is_symmetric, class Derived>
+std::enable_if_t<is_symmetric && std::is_arithmetic<DataType>::value, void>
+ApplyGivensLeft(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c,
+                const DataType ak_s) {
+  for (long i = 0; i < a_matrix.cols(); ++i) {
+      // Do Givens stuff
+  }
+  return;
+}
 
 /* Applies a single givens rotation to a tridiagonal Matrix
  * Parameter:
@@ -447,11 +456,11 @@ DoubleShiftParameter(const Eigen::MatrixBase<Derived> &ak_matrix, const int a_in
  * - a_matrix: Tridiagonal Matrix
  * Return: void
  */
-template <class Derived>
-void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
+template <class Derived, class Matrix = Eigen::Matrix<typename Derived::Scalar, -1, -1>>
+Matrix DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
                        const double ak_tol = 1e-12) {
   typedef Eigen::MatrixBase<Derived> MatrixType;
-  typedef Eigen::Matrix<typename Derived::Scalar, -1, -1> Matrix;
+  //typedef Eigen::Matrix<typename Derived::Scalar, -1, -1> Matrix;
   MatrixType& matrix = const_cast<MatrixType &>(a_matrix);
   int n = a_matrix.rows();
   std::vector<typename Derived::Scalar> shift =
@@ -462,6 +471,7 @@ void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
 //  }
   // Only first three entries of first col needed
   Matrix matrix2 = matrix;
+  Matrix q = Matrix::Identity(a_matrix.rows, a_matrix.cols);
   Matrix m1 = a_matrix(Eigen::seqN(0,3), Eigen::all) *
     a_matrix(Eigen::all, 0) + shift.at(0) *
     a_matrix(Eigen::seqN(0,3), 0) + shift.at(1) * Matrix::Identity(3, 1);
@@ -469,12 +479,14 @@ void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
   long end = std::min(4, n);
   ApplyHouseholderRight(w, matrix(Eigen::seqN(0, end), Eigen::seqN(0, 3)));
   ApplyHouseholderLeft(w, matrix(Eigen::seqN(0, 3), Eigen::all));
+  ApplyHouseholderRight(w, q, 3);
   for (int i = 0; i < n - 3; ++i) {
     Eigen::Vector<typename Derived::Scalar, -1> w = GetHouseholderVector(matrix(
           Eigen::seqN(i + 1, 3), i), ak_tol);
     end = std::min(i+4, n-1);
     ApplyHouseholderRight(w, matrix(Eigen::seq(0, end), Eigen::seqN(i+1, 3)));
     ApplyHouseholderLeft(w, matrix(Eigen::seqN(i+1, 3), Eigen::seq(i, n-1)));
+    ApplyHouseholderRight(w, q, 3);
     matrix(Eigen::seqN(i + 2, 2), i) = Matrix::Zero(2, 1);                      // Set Round off errors to 0
   }
   // Maybe Givens?
