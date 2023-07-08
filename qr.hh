@@ -34,20 +34,21 @@ namespace nla_exam {
 
 template<class Derived, class T = typename Derived::Scalar>
 Eigen::Vector<T, -1> GetHouseholderVector(const Eigen::MatrixBase<Derived> &ak_x,
-                          const double ak_tol = 1e-12) {
+                          const double ak_tol ) {
+                          //const double ak_tol = 1e-100) {
   //typedef typename Derived::Scalar T;
 
+  // TODO this is false for complex numbers
   Eigen::Vector<T, -1> w = ak_x;
   long n = w.rows();
   T t = w(Eigen::lastN(n-1)).squaredNorm();
-  if (std::abs(t) < ak_tol) {
+  if (std::abs(t) < 1e-100) {                                                   // Better Criteria needed
     w(0) = 1;
-    std::cout << "tail is zero" << std::endl;
   } else {
-    T s = std::sqrt(w(0) * w(0) + t);
+    T s = std::sqrt(std::abs(w(0)) * std::abs(w(0)) + t);
     T angle;
     if constexpr (IsComplex<typename Derived::Scalar>()) {
-      angle = std::polar(1.0, arg(w(0)));                                       // Choise to avoid loss of significance
+      angle = std::polar(1.0, std::arg(w(0)));                                       // Choise to avoid loss of significance
     } else {
       if (w(0) < 0) angle = -1;
       else angle = 1;
@@ -181,20 +182,67 @@ WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix, const bool a_first =
     } else {
       entry = ak_matrix(0, 0);
     }
-      if (std::abs(ev1 - entry) < std::abs(ev2 - entry)) {        // return the nearest eigenvalue
-        return ev1;
-      } else {
+    if (std::abs(ev1 - entry) < std::abs(ev2 - entry)) {        // return the nearest eigenvalue
+      return ev1;
+    } else {
         return ev2;
       }
 }
 
 
-template <class DataType, bool is_symmetric, class Derived>
-std::enable_if_t<is_symmetric && std::is_arithmetic<DataType>::value, void>
+template <class DataType, class Derived>
+std::enable_if_t<std::is_arithmetic<DataType>::value, void>
 ApplyGivensLeft(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c,
                 const DataType ak_s) {
+  Eigen::MatrixBase<Derived>& matrix =
+    const_cast<Eigen::MatrixBase<Derived>&>(a_matrix);
   for (long i = 0; i < a_matrix.cols(); ++i) {
-      // Do Givens stuff
+    typename Derived::Scalar tmp = matrix(0, i);
+    matrix(0, i) = ak_c * tmp + ak_s * matrix(1, i);
+    matrix(1, i) = -ak_s * tmp + ak_c * matrix(1, i);
+  }
+  return;
+}
+
+template <class DataType, class Derived>
+std::enable_if_t<std::is_arithmetic<DataType>::value, void>
+ApplyGivensRight(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c,
+                 const DataType ak_s) {
+  Eigen::MatrixBase<Derived>& matrix =
+    const_cast<Eigen::MatrixBase<Derived>&>(a_matrix);
+  for (long i = 0; i < a_matrix.rows(); ++i) {
+    typename Derived::Scalar tmp = matrix(i, 0);
+    matrix(i, 0) = ak_c * tmp + ak_s * matrix(i, 1);
+    matrix(i, 1) = -ak_s * tmp + ak_c * matrix(i, 1);
+  }
+  return;
+}
+
+
+template <class DataType, class Derived>
+void
+ApplyGivensLeft(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c,
+                const DataType ak_s, const DataType ak_sconj) {
+  Eigen::MatrixBase<Derived>& matrix =
+    const_cast<Eigen::MatrixBase<Derived>&>(a_matrix);
+  for (long i = 0; i < a_matrix.cols(); ++i) {
+    typename Derived::Scalar tmp = matrix(0, i);
+    matrix(0, i) = ak_c * tmp + ak_sconj * matrix(1, i);
+    matrix(1, i) = -ak_s * tmp + ak_c * matrix(1, i);
+  }
+  return;
+}
+
+template <class DataType, class Derived>
+void
+ApplyGivensRight(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c,
+                 const DataType ak_s, const DataType ak_sconj) {
+  Eigen::MatrixBase<Derived>& matrix =
+    const_cast<Eigen::MatrixBase<Derived>&>(a_matrix);
+  for (long i = 0; i < a_matrix.rows(); ++i) {
+    typename Derived::Scalar tmp = matrix(i, 0);
+    matrix(i, 0) = ak_c * tmp + ak_s * matrix(i, 1);
+    matrix(i, 1) = -ak_sconj * tmp + ak_c * matrix(i, 1);
   }
   return;
 }
@@ -206,61 +254,7 @@ ApplyGivensLeft(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c,
  *  - ak_c:       Parameter 'c' in the givens rotation
  *  - ak_s:       Parameter 's' in the givens rotation
  */
-template <class DataType, bool is_symmetric, bool is_first, bool is_last,
-         class Derived>
-std::enable_if_t<is_symmetric && std::is_arithmetic<DataType>::value, void>
-ApplyGivens(const Eigen::MatrixBase<Derived> &a_matrix, const int ak_k,
-            const DataType ak_c, const DataType ak_s) {
-  Eigen::MatrixBase<Derived>& matrix =
-    const_cast<Eigen::MatrixBase<Derived>&>(a_matrix);
-  Eigen::Matrix<typename Derived::Scalar, 2, 2> Q;
-  Q(0, 0) = ak_c;
-  Q(1, 1) = ak_c;
-  Q(0, 1) = -ak_s;
-  Q(1, 0) = ak_s;
 
-  // Previous Column
-  if constexpr (!is_first) {
-    matrix(Eigen::seq(ak_k, ak_k + 1), ak_k -1) = Q.adjoint() * matrix(Eigen::seq(ak_k, ak_k + 1), ak_k -1);
-    matrix(ak_k -1, Eigen::seq(ak_k, ak_k + 1)) = matrix(ak_k - 1, Eigen::seq(ak_k, ak_k + 1)) * Q;
-//    matrix(ak_k -1, ak_k + 1) = 0;
-//    matrix(ak_k + 1, ak_k -1) = 0;
-  }
-
-  // Center Block
-  matrix(Eigen::seq(ak_k, ak_k + 1), Eigen::seq(ak_k, ak_k + 1)) = Q.adjoint() * matrix(Eigen::seq(ak_k, ak_k +1), Eigen::seq(ak_k, ak_k +1));
-  matrix(Eigen::seq(ak_k, ak_k + 1), Eigen::seq(ak_k, ak_k + 1)) = matrix(Eigen::seq(ak_k, ak_k +1), Eigen::seq(ak_k, ak_k +1)) * Q;
-
-  // Next Column
-  if constexpr (!is_last) {
-    matrix(Eigen::seq(ak_k, ak_k + 1), ak_k + 2) = Q.adjoint() * matrix(Eigen::seq(ak_k, ak_k + 1), ak_k + 2);
-    matrix(ak_k + 2, Eigen::seq(ak_k, ak_k + 1)) = matrix(ak_k + 2, Eigen::seq(ak_k, ak_k + 1)) * Q;
-  }
-  return;
-}
-
-template <class DataType,  bool is_symmetric, class Derived>
-//std::enable_if_t<!is_symmetric, void>
-void
-ApplyGivens(const Eigen::MatrixBase<Derived> &a_matrix, const int ak_k,
-            const DataType ak_c, const DataType ak_s,
-            const DataType ak_sconj) {
-  Eigen::MatrixBase<Derived>& matrix = const_cast<typename Eigen::MatrixBase<
-    Derived>&>(a_matrix);
-  Eigen::Matrix<DataType, 2, 2> Q;
-  Q(0, 0) = ak_c;
-  Q(1, 1) = ak_c;
-  Q(0, 1) = -ak_s;
-  Q(1, 0) = ak_sconj;
-  int start = std::max(0, ak_k -1);
-  long end = std::min(long{ak_k + 2}, long{matrix.rows() - 1});
-  matrix(Eigen::seq(ak_k, ak_k+1), Eigen::seq(start, matrix.rows() -1)) =
-    Q.adjoint() * matrix(Eigen::seq(ak_k, ak_k+1),
-        Eigen::seq(start, matrix.rows() -1));
-  matrix(Eigen::seq(0, end), Eigen::seq(ak_k, ak_k+1)) =
-    matrix(Eigen::seq(0, end), Eigen::seq(ak_k, ak_k+1)) * Q;
-  return;
-}
 
 
 /* Calculate the entries of a Givens Matrix
@@ -288,7 +282,7 @@ GetGivensEntries(const DataType& ak_a, const DataType& ak_b) {
   real absb = std::abs(ak_b);
   real r = std::hypot(absa, absb);
   res.at(0) = absa / r;
-  res.at(1) = std::polar(std::abs(ak_b) / r, std::arg(ak_a) - std::arg(ak_b));
+  res.at(1) = std::polar(absb / r, std::arg(ak_b) -std::arg(ak_a));
   res.at(2) = std::conj(res.at(1));
   return res;
 }
@@ -303,26 +297,22 @@ template <class DataType, bool is_symmetric, typename Derived>
 void
 ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
                const double = 1e-12) {
+  Eigen::MatrixBase<Derived>& matrix =
+    const_cast<Eigen::MatrixBase<Derived>&>(a_matrix);
   DataType shift = WilkinsonShift<DataType>(a_matrix(Eigen::lastN(2),
         Eigen::lastN(2)));
   int n = a_matrix.rows();
   auto entries = GetGivensEntries<>(a_matrix(0, 0) - shift, a_matrix(1, 0));
   if constexpr (is_symmetric) {
+        Eigen::MatrixXd mat2 = a_matrix;
     switch (n) {                                                                  // Initial step
       case 2:
-        ApplyGivens<DataType, is_symmetric, true, true>(a_matrix, 0,
-            entries.at(0), entries.at(1));
-        return;
-      case 3:
-        ApplyGivens<DataType, is_symmetric, true, false>(a_matrix, 0,
-            entries.at(0), entries.at(1));
-        entries = GetGivensEntries<>(a_matrix(1, 0), a_matrix(2,0));
-        ApplyGivens<DataType, is_symmetric, false, true>(a_matrix, 1,
-            entries.at(0), entries.at(1));
+        ApplyGivensLeft<DataType>(matrix, entries.at(0), entries.at(1));
+        ApplyGivensRight<DataType>(matrix, entries.at(0), entries.at(1));
         return;
       default:
-        ApplyGivens<DataType, is_symmetric, true, false>(a_matrix, 0,
-            entries.at(0), entries.at(1));
+        ApplyGivensLeft<DataType>(matrix(Eigen::seqN(0,2), Eigen::all), entries.at(0), entries.at(1));
+        ApplyGivensRight<DataType>(matrix(Eigen::seqN(0, 3), Eigen::seqN(0, 2)), entries.at(0), entries.at(1));
     }
     for (int k = 1; k < n - 2; ++k) {                                             // Buldge Chasing
       entries = GetGivensEntries<>(a_matrix(k, k-1), a_matrix(k+1, k-1));
@@ -330,32 +320,36 @@ ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
 //       const_cast<typename Derived::Scalar&>(a_matrix(k + 2, k + 1)) *= -1;
 //       const_cast<typename Derived::Scalar&>(a_matrix(k + 1, k + 2)) *= -1;
 //      }
-      ApplyGivens<DataType, is_symmetric, false, false>(a_matrix, k,
-          entries.at(0), entries.at(1));
+      ApplyGivensLeft<DataType>(matrix(Eigen::seqN(k,2), Eigen::seq(k-1,n-1)), entries.at(0), entries.at(1));
+      ApplyGivensRight<DataType>(matrix(Eigen::seq(0, k+2), Eigen::seqN(k, 2)), entries.at(0), entries.at(1));
+    matrix(k -1, k + 1) = 0;
+    matrix(k + 1, k -1) = 0;
     }
     entries = GetGivensEntries<>(a_matrix(n-2, n-3), a_matrix(n-1, n-3));
-    ApplyGivens<DataType, is_symmetric, false, true>(a_matrix, n-2,
-        entries.at(0), entries.at(1));
+    ApplyGivensLeft<DataType>(matrix(Eigen::seqN(n-2, 2), Eigen::lastN(3)), entries.at(0), entries.at(1));
+    ApplyGivensRight<DataType>(matrix(Eigen::all, Eigen::seqN(n-2, 2)), entries.at(0), entries.at(1));
+    matrix(n-3, n-1) = 0;
+    matrix(n-1, n-3) = 0;
+
   } else {
-    // TODO improve readability
     if (entries.size() == 2) entries.push_back(entries.at(1));
-    ApplyGivens<DataType, is_symmetric>(a_matrix, 0, entries.at(0),
-        entries.at(1), entries.at(2));
-    for (int k = 1; k < n - 1; ++k) {                                             // Buldge Chasing
+
+      ApplyGivensLeft<DataType>(matrix, entries.at(0), entries.at(1), entries.at(2));
+      ApplyGivensRight<DataType>(matrix, entries.at(0), entries.at(1), entries.at(2));
+    for (int k = 1; k < n - 2; ++k) {                                             // Buldge Chasing
       entries = GetGivensEntries<>(a_matrix(k, k-1), a_matrix(k+1, k-1));
-      if (entries.size() == 2) entries.push_back(entries.at(1));
-      ApplyGivens<DataType, is_symmetric>(a_matrix, k, entries.at(0),
-          entries.at(1), entries.at(2));
-      // TODO include this into the apply givens?
-      const_cast<Eigen::MatrixBase<Derived>&>(a_matrix)(k + 1, k - 1) = 0.0;
+      if (entries.size() == 2) entries.push_back(entries.at(1)); // TODO is this cease needed?
+      ApplyGivensLeft<DataType>(matrix(Eigen::seqN(k,2), Eigen::seq(k-1,n-1)), entries.at(0), entries.at(1), entries.at(2));
+      ApplyGivensRight<DataType>(matrix(Eigen::seq(0, k+2), Eigen::seqN(k, 2)), entries.at(0), entries.at(1), entries.at(2));
+      matrix(k + 1, k - 1) = 0.0;
+    }
+    if (matrix.rows() > 2) {
+      entries = GetGivensEntries<>(a_matrix(n-2, n-3), a_matrix(n-1, n-3));
+      ApplyGivensLeft<DataType>(matrix(Eigen::seqN(n-2, 2), Eigen::lastN(3)), entries.at(0), entries.at(1), entries.at(2));
+      ApplyGivensRight<DataType>(matrix(Eigen::all, Eigen::seqN(n-2, 2)), entries.at(0), entries.at(1), entries.at(2));
+      matrix(n-1, n-3) = 0.0;
     }
   }
-//  std::cout << a_matrix.diagonal(-1) << std::endl
-//            << "diag: " << std::endl
-//            << a_matrix.diagonal() << std::endl
-//            << "superdiag: " << std::endl
-//            << a_matrix.diagonal(1) << std::endl
-//            << std::endl << std::endl;
   return;
 }
 
@@ -456,11 +450,11 @@ DoubleShiftParameter(const Eigen::MatrixBase<Derived> &ak_matrix, const int a_in
  * - a_matrix: Tridiagonal Matrix
  * Return: void
  */
-template <class Derived, class Matrix = Eigen::Matrix<typename Derived::Scalar, -1, -1>>
-Matrix DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
+template <class Derived>
+void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
                        const double ak_tol = 1e-12) {
   typedef Eigen::MatrixBase<Derived> MatrixType;
-  //typedef Eigen::Matrix<typename Derived::Scalar, -1, -1> Matrix;
+  typedef Eigen::Matrix<typename Derived::Scalar, -1, -1> Matrix;
   MatrixType& matrix = const_cast<MatrixType &>(a_matrix);
   int n = a_matrix.rows();
   std::vector<typename Derived::Scalar> shift =
@@ -471,7 +465,6 @@ Matrix DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
 //  }
   // Only first three entries of first col needed
   Matrix matrix2 = matrix;
-  Matrix q = Matrix::Identity(a_matrix.rows, a_matrix.cols);
   Matrix m1 = a_matrix(Eigen::seqN(0,3), Eigen::all) *
     a_matrix(Eigen::all, 0) + shift.at(0) *
     a_matrix(Eigen::seqN(0,3), 0) + shift.at(1) * Matrix::Identity(3, 1);
@@ -479,14 +472,12 @@ Matrix DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
   long end = std::min(4, n);
   ApplyHouseholderRight(w, matrix(Eigen::seqN(0, end), Eigen::seqN(0, 3)));
   ApplyHouseholderLeft(w, matrix(Eigen::seqN(0, 3), Eigen::all));
-  ApplyHouseholderRight(w, q, 3);
   for (int i = 0; i < n - 3; ++i) {
     Eigen::Vector<typename Derived::Scalar, -1> w = GetHouseholderVector(matrix(
           Eigen::seqN(i + 1, 3), i), ak_tol);
     end = std::min(i+4, n-1);
     ApplyHouseholderRight(w, matrix(Eigen::seq(0, end), Eigen::seqN(i+1, 3)));
     ApplyHouseholderLeft(w, matrix(Eigen::seqN(i+1, 3), Eigen::seq(i, n-1)));
-    ApplyHouseholderRight(w, q, 3);
     matrix(Eigen::seqN(i + 2, 2), i) = Matrix::Zero(2, 1);                      // Set Round off errors to 0
   }
   // Maybe Givens?

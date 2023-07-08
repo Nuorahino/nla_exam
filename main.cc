@@ -28,11 +28,11 @@ int main(int argc, char** argv) {
   int seed = 28;
   for( int i = start; i <= max_size; ++i ) {
     std::cout << "Test n = " << i << std::endl;
-//    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true);
+    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true);
 //    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-6);
-//    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, false);
+   RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, false);
    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, true);
-//   RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, false);
+   RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, false);
 //    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, false, 1e-6);
   }
 
