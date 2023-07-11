@@ -14,6 +14,7 @@
 #include <ctime>
 #include <cassert>
 
+
 template<class T> inline constexpr
 std::enable_if_t<std::is_same<T, std::complex<typename T::value_type>>::value,
   bool> IsComplex() {
@@ -26,6 +27,18 @@ std::enable_if_t<std::is_arithmetic<T>::value, bool>
 IsComplex() {
   return false;
 }
+
+template<bool Complex, class T>
+struct EvType {typedef T type;};
+
+template<class T>
+struct EvType<false, T> {typedef std::complex<T> type;};
+
+template<bool Complex>
+struct DoubleType {typedef std::complex<double> type;};
+
+template<>
+struct DoubleType<false> {typedef double type;};
 
 
 /* Determine if the given Matrix is hermitian
