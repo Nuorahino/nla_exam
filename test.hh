@@ -103,7 +103,7 @@ void RunTest(std::ofstream& a_summary_file, std::ofstream& a_eigenvalue_file,
   std::vector<C> res;
   std::tie(M,res) = CreateRandom<MatrixType>(ak_size, ak_is_hermitian, ak_seed);
   auto start = std::chrono::steady_clock::now();
-  nla_exam::HessenbergTransformation<>(M, ak_tol, ak_is_hermitian);
+  nla_exam::HessenbergTransformation<>(M, ak_is_hermitian);
   std::vector<C> estimate;
   if (ak_is_hermitian) {
     estimate = nla_exam::QrMethod<true>(M.real(), ak_tol);

@@ -26,12 +26,11 @@ namespace nla_exam {
  * Return: Householder Vector
  */
 template<class Derived, class T = typename Derived::Scalar>
-Eigen::Vector<T, -1> GetHouseholderVector(const Eigen::MatrixBase<Derived> &ak_x,
-                          const double ak_tol = 1e-100) {
+Eigen::Vector<T, -1> GetHouseholderVector(const Eigen::MatrixBase<Derived> &ak_x) {
   Eigen::Vector<T, -1> w = ak_x;
   long n = w.rows();
   T t = w(Eigen::lastN(n-1)).squaredNorm();
-  if (std::abs(t) < 1e-100) {                                                   // Better Criteria needed
+  if (std::abs(t) < std::numeric_limits<decltype(std::abs(t))>::min()) {                            // Better Criteria needed
     w(0) = 1;
   } else {
     T s = std::sqrt(std::abs(w(0)) * std::abs(w(0)) + t);
@@ -92,13 +91,11 @@ void ApplyHouseholderLeft(const Eigen::MatrixBase<Derived2> &ak_w,
 /* Transforms a Matrix to Hessenberg form
  * Parameter:
  * - a_matrix: Matrix to transform
- * - ak_tol: passed to 'GetHouseholderVector'
  * - ak_is_hermitian: bool
  * Return: void
  */
 template <class Derived>
 void HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
-                              const double ak_tol = 1e-12,
                               const bool ak_is_hermitian = false) {
   typedef Eigen::MatrixBase<Derived> MatrixType;
   MatrixType& matrix = const_cast<MatrixType&>(a_matrix);
@@ -107,7 +104,7 @@ void HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
 
   for (int i = 0; i < matrix.rows() - 2; ++i) {
     Eigen::Vector<typename Derived::Scalar, -1> w = GetHouseholderVector(matrix(
-                                  Eigen::lastN(n - i - 1), i), ak_tol);
+                                  Eigen::lastN(n - i - 1), i));
     ApplyHouseholderRight(w, matrix(Eigen::all, Eigen::lastN(n - i - 1)));
     ApplyHouseholderLeft(w, matrix(Eigen::lastN(n - i - 1), Eigen::seq(i, n-1)));
     matrix(Eigen::seqN(i + 2, n - i - 2), i) = MatrixType::Zero(n - i - 2, 1);
@@ -282,6 +279,25 @@ GetGivensEntries(const DataType& ak_a, const DataType& ak_b) {
   return res;
 }
 
+template <class DataType>
+typename std::enable_if_t<std::is_arithmetic<DataType>::value, DataType>
+ExceptionalSingleShift() {
+  std::random_device dev;
+  std::mt19937 rng(dev());
+  std::uniform_real_distribution<DataType> dist(-100,100); // distribution in range [1, 6]
+  return dist(rng);
+}
+
+template <class DataType>
+typename std::enable_if_t<!std::is_arithmetic<DataType>::value, DataType>
+ExceptionalSingleShift() {
+  std::random_device dev;
+  std::mt19937 rng(dev());
+  std::uniform_real_distribution<typename DataType::value_type> dist(-100,100); // distribution in range [1, 6]
+  DataType res = dist(rng);
+  //return res;
+  return {dist(rng), dist(rng)};
+}
 
 /* Executes one step of the implicit qr algorithm for a tridiagonal Matrix
  * Parameter:
@@ -290,13 +306,16 @@ GetGivensEntries(const DataType& ak_a, const DataType& ak_b) {
  */
 template <class DataType, bool is_symmetric, typename Derived>
 void
-ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
-               const double = 1e-12) {                                          // TODO remove the useless parameter
+ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix, const bool ak_exceptional_shift) {
   Eigen::MatrixBase<Derived>& matrix = const_cast<
     Eigen::MatrixBase<Derived>&>(a_matrix);
   int n = a_matrix.rows();
-  DataType shift = WilkinsonShift<DataType>(a_matrix(Eigen::lastN(2),
-        Eigen::lastN(2)));
+  DataType shift;
+  if (ak_exceptional_shift) {
+    shift = ExceptionalSingleShift<DataType>();
+  } else {
+    shift = WilkinsonShift<DataType>(a_matrix(Eigen::lastN(2), Eigen::lastN(2)));
+  }
   auto entries = GetGivensEntries<>(a_matrix(0, 0) - shift, a_matrix(1, 0));    // Parameter for the initial step
   if constexpr (is_symmetric) { // TODO maybe better solution if matrix has symmetric view
     // innitial step
@@ -401,20 +420,45 @@ DoubleShiftParameter(const Eigen::MatrixBase<Derived> &ak_matrix, const int a_in
   return res;
 }
 
+template <class DataType>
+typename std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
+ExceptionalDoubleShift() {
+  std::random_device dev;
+  std::mt19937 rng(dev());
+  std::uniform_real_distribution<DataType> dist(-100,100); // distribution in range [1, 6]
+  std::vector<DataType> res{dist(rng), dist(rng)};
+
+  return res;
+}
+
+template <class DataType>
+typename std::enable_if_t<!std::is_arithmetic<DataType>::value, std::vector<DataType>>
+ExceptionalDoubleShift() {
+  std::random_device dev;
+  std::mt19937 rng(dev());
+  std::uniform_real_distribution<DataType> dist(-100,100); // distribution in range [1, 6]
+  std::vector<DataType> res{{dist(rng), dist(rng)}, {dist(rng), dist(rng)}};
+  res.push_back(std::conj(res.at(1)));
+  return res;
+}
+
 /* Executes one step of the double shift algorithm
  * Parameter:
  * - a_matrix: Tridiagonal Matrix
  * Return: void
  */
 template <class Derived>
-void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
-                       const double ak_tol = 1e-12) { // TODO tol needs to be set different
+void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix, const bool ak_exceptional_shift)  {
   typedef Eigen::MatrixBase<Derived> MatrixType;
   typedef Eigen::Matrix<typename Derived::Scalar, -1, -1> Matrix;
   MatrixType& matrix = const_cast<MatrixType &>(a_matrix);
   int n = a_matrix.rows();
-  std::vector<typename Derived::Scalar> shift =
-      DoubleShiftParameter<>(a_matrix(Eigen::lastN(2), Eigen::lastN(2)));
+  std::vector<typename Derived::Scalar> shift;
+  if (ak_exceptional_shift) {
+    shift = ExceptionalDoubleShift<typename Derived::Scalar>();
+  } else {
+    shift = DoubleShiftParameter<>(a_matrix(Eigen::lastN(2), Eigen::lastN(2)));
+  }
 //  if (shift.size() == 0) {    // TODO: remove this test
 //    ImplicitQrStep<typename Derived::Scalar, false>(a_matrix, ak_tol);
 //    return;
@@ -425,20 +469,19 @@ void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
     a_matrix(Eigen::seqN(0,3), 0) + shift.at(1) * Matrix::Identity(3, 1);
 
   long end = std::min(4, n);                                                    // Compatability with matrices of size 3
-  Eigen::Vector<typename Derived::Scalar, -1> w = GetHouseholderVector(         // Initial Step
-      m1, ak_tol);
+  Eigen::Vector<typename Derived::Scalar, -1> w = GetHouseholderVector(m1);     //  initial step
   ApplyHouseholderRight(w, matrix(Eigen::seqN(0, end), Eigen::seqN(0, 3)));
   ApplyHouseholderLeft(w, matrix(Eigen::seqN(0, 3), Eigen::all));
   for (int i = 0; i < n - 3; ++i) {                                             //  Buldge chasing
     Eigen::Vector<typename Derived::Scalar, -1> w = GetHouseholderVector(matrix(
-          Eigen::seqN(i + 1, 3), i), ak_tol);
+          Eigen::seqN(i + 1, 3), i));
     end = std::min(i+4, n-1);
     ApplyHouseholderRight(w, matrix(Eigen::seq(0, end), Eigen::seqN(i+1, 3)));
     ApplyHouseholderLeft(w, matrix(Eigen::seqN(i+1, 3), Eigen::seq(i, n-1)));
     matrix(Eigen::seqN(i + 2, 2), i) = Matrix::Zero(2, 1);                      // Set Round off errors to 0
   }
   // Maybe Givens?                                                              // Last part
-  w = GetHouseholderVector(matrix(Eigen::lastN(2), n-3), ak_tol);
+  w = GetHouseholderVector(matrix(Eigen::lastN(2), n-3));
   ApplyHouseholderRight(w, matrix(Eigen::all, Eigen::lastN(2)));
   ApplyHouseholderLeft(w, matrix(Eigen::lastN(2), Eigen::lastN(3)));
 }
@@ -453,20 +496,24 @@ void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
  * Return: "true" if the block is fully solved, "false" otherwise
  */
 template <class Derived>
-bool DeflateDiagonal(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin,
+int DeflateDiagonal(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin,
                       int &a_end, const double ak_tol = 1e-12) {
-  bool state = true;
+  int state = 2;
   for (int i = a_end; i > a_begin; --i) {
     if (std::abs(a_matrix(i, i - 1)) < ak_tol * (std::abs(a_matrix(i, i)) +
           std::abs(a_matrix(i - 1, i - 1)))) {
       const_cast<Eigen::MatrixBase<Derived> &>(a_matrix)(i, i - 1) = 0;
-      if (!state) {
+      if (state < 2) {
         a_begin = i;
-        return false;                                                             // Subblock to solve found
+        return 1;                                                             // Subblock to solve found
       }
-    } else if (state) {                                                           // Start of the block found
-      a_end = i;
-      state = false;
+    } else if (state == 2) {                                                           // Start of the block found
+      if (i == a_end) {
+        state = 0;
+      } else {
+        a_end = i;
+        state = 1;
+      }
     }
   }
   return state;
@@ -482,23 +529,27 @@ bool DeflateDiagonal(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin,
  * Return: "true" if the block is fully solved, "false" otherwise
  */
 template <class Derived>
-bool DeflateSchur(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin,
+int DeflateSchur(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin,
                    int &a_end, const double ak_tol = 1e-12) {
-  bool state = true;
+  int state = 2;
   for (int i = a_end; i > a_begin; --i) {
     if (std::abs(a_matrix(i, i - 1)) < ak_tol * std::abs(a_matrix(i, i) +
           std::abs(a_matrix(i - 1, i - 1)))) {
       const_cast<Eigen::MatrixBase<Derived> &>(a_matrix)(i, i - 1) = 0;
-      if (!state) {
+      if (state < 2) {
         a_begin = i;
-        return false;                                                             // Subblock to solve found
+        return 1;                                                             // Subblock to solve found
       }
-    } else if (state && (i - 1 > a_begin) &&
+    } else if (state == 2 && (i - 1 > a_begin) &&
                (std::abs(a_matrix(i - 1, i - 2)) >= ak_tol * (std::abs(a_matrix(
                   i - 2, i - 2)) + std::abs(a_matrix(i - 1, i - 1))))) {          // Start of the block found
-      a_end = i;
+      if (i == a_end) {
+        state = 0;
+      } else {
+        a_end = i;
+        state = 1;
+      }
       --i;                                                                        // Next index already checked
-      state = false;
     }
   }
   return state;
@@ -565,12 +616,13 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
   typedef Eigen::Block<Derived, -1, -1, false> StepMatrix;
   int begin = 0;
   int end = a_matrix.rows() - 1;
+  int steps_since_deflation = 0;
 
   // specific definitions
   int end_of_while = 0;
   bool tridiagonal_result = true;
-  void (*step)(const Eigen::MatrixBase<StepMatrix> &, const double);
-  bool (*deflate)(const Eigen::MatrixBase<Derived> &, int &, int &,
+  void (*step)(const Eigen::MatrixBase<StepMatrix> &, bool);
+  int (*deflate)(const Eigen::MatrixBase<Derived> &, int &, int &,
                   const double);
   if constexpr (std::is_arithmetic<typename Derived::Scalar>::value &&
       !ak_is_hermitian) {
@@ -586,12 +638,25 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
 
   // qr iteration
   while (end_of_while < end) {
-    if (deflate(a_matrix, begin, end, ak_tol)) {
-      end = begin - 1;
-      begin = 0;
+    //std::cout << a_matrix << std::endl << std::endl;
+    int status = deflate(a_matrix, begin, end, ak_tol);
+    if (status > 0) {
+      std::cout << "deflation after: " << steps_since_deflation << " steps" << std::endl;
+      steps_since_deflation = 0;
+      if (status > 1) {
+        end = begin - 1;
+        begin = 0;
+      }
     } else {
+      ++steps_since_deflation;
+      bool exceptional_shift = false;
+      if (steps_since_deflation > 10) {
+        std::cout << "exceptional shift" << std::endl;
+        exceptional_shift = true;
+        steps_since_deflation = 1;
+      }
       step(const_cast<MatrixType&>(a_matrix)(Eigen::seq(begin, end),
-              Eigen::seq(begin, end)), ak_tol); //  TODO remove ak_tol, after a solution for Hessenberg has been found
+              Eigen::seq(begin, end)), exceptional_shift);
     }
   }
   return CalcEigenvaluesFromSchur<DataType>(a_matrix, tridiagonal_result);
