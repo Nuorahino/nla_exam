@@ -11,6 +11,8 @@
 
 #include "helpfunctions/helpfunctions.hh"
 #include "qr.hh"
+#include "lapack/lapack_interface_impl.hh"
+#include "helpfunctions/createMatrix.hh"
 
 /*
  * Write the summary Header to the file
@@ -101,8 +103,20 @@ void RunTest(std::ofstream& a_summary_file, std::ofstream& a_eigenvalue_file,
   typedef std::complex<double> C;
   MatrixType M;
   std::vector<C> res;
-  std::tie(M,res) = CreateRandom<MatrixType>(ak_size, ak_is_hermitian, ak_seed);
+  std::tie(M, res) = CreateRandom<MatrixType>(ak_size, ak_is_hermitian, ak_seed);
+  //std::tie(M, std::ignore) = CreateRandom<MatrixType>(ak_size, ak_is_hermitian, ak_seed);
+  //M = RandomNonSymmRealEv<MatrixType>(ak_size);
+//  Eigen::VectorXcd test;
+//  if constexpr ( IsComplex<MatrixType::Scalar>() ) {
+//    std::tie(std::ignore, test) = CalculateGeneralEigenvalues(M, false);
+//  }
+//  res = ConvertToVec(test);
+
   nla_exam::HessenbergTransformation<>(M, ak_is_hermitian);
+
+//  res = ConvertToVec(test);
+//  std::vector<std::complex<double>> comp_eigenvalues = ConvertToVec(test);
+
   auto start = std::chrono::steady_clock::now();
   std::vector<C> estimate;
   if (ak_is_hermitian) {
@@ -110,8 +124,8 @@ void RunTest(std::ofstream& a_summary_file, std::ofstream& a_eigenvalue_file,
   } else {
     estimate = nla_exam::QrMethod<false>(M, ak_tol);
   }
-  //Eigen::ComplexEigenSolver<MatrixType> es(M);
-  //std::vector<C> estimate = ConvertToVec(es.eigenvalues());
+
+
   auto end = std::chrono::steady_clock::now();
   std::chrono::duration<double> runtime = (end - start);
   std::sort(estimate.begin(), estimate.end(), [](C& a, C& b) {
@@ -122,17 +136,10 @@ void RunTest(std::ofstream& a_summary_file, std::ofstream& a_eigenvalue_file,
   PrintSummary(a_summary_file, prefix, error);
   PrintEigenvalues(a_eigenvalue_file, prefix, estimate, error);
 
-//  Eigen::ComplexEigenSolver<MatrixType> es(M, computeEigenvectors=false);
-//  Eigen::ComplexEigenSolver<MatrixType> es(M);
-//  auto comp_eigenvalues = es.eigenvalues();
-//  std::vector<std::complex<double>> comp_eigenvalues = ConvertToVec(es.eigenvalues());
 //  std::vector<double> error2 = GetApproximationError(comp_eigenvalues, res);
-//  std::cout << error2 << std::endl;
-//  std::cout << "Results: Estimate, Eigen, exact, error" << std::endl;
-//  std::cout << estimate << std::endl;
-//  std::cout << comp_eigenvalues << std::endl;
-//  std::cout << res << std::endl;
-//  std::cout << error << std::endl;
+//  prefix = GetVariantString(ak_size + 9999, ak_is_hermitian,
+//      IsComplex<typename MatrixType::Scalar>(), ak_seed, ak_tol, runtime);
+//  PrintSummary(a_summary_file, prefix, error);
 }
 
 

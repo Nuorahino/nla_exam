@@ -7,7 +7,7 @@ INCL := -I ../helpfunctions
 
 DEBUG := -g -Wall -Wextra -Wfloat-equal -Wshadow -Wunreachable-code -fsanitize=address -fsanitize=undefined -fsanitize=pointer-compare -Wunused-but-set-variable -pedantic
 
-CFLAGS := $(INCL) -std=c++17 -DVERSION=$(BASEVERSION)
+CFLAGS := $(INCL) -std=c++17 -llapack -DVERSION=$(BASEVERSION)
 
 cfiles := main.cc test.cc
 

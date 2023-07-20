@@ -99,7 +99,6 @@ void HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
                               const bool ak_is_hermitian = false) {
   typedef Eigen::MatrixBase<Derived> MatrixType;
   MatrixType& matrix = const_cast<MatrixType&>(a_matrix);
-  // TODO symmetric view
   long n = a_matrix.rows();
 
   for (int i = 0; i < matrix.rows() - 2; ++i) {
@@ -108,6 +107,9 @@ void HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
     ApplyHouseholderRight(w, matrix(Eigen::all, Eigen::lastN(n - i - 1)));
     ApplyHouseholderLeft(w, matrix(Eigen::lastN(n - i - 1), Eigen::seq(i, n-1)));
     matrix(Eigen::seqN(i + 2, n - i - 2), i) = MatrixType::Zero(n - i - 2, 1);
+    if (ak_is_hermitian) {
+      matrix(i, Eigen::seqN(i + 2, n - i - 2)) = MatrixType::Zero(1, n - i - 2);
+    }
     // TODO symmetric set rest to 0?
   }
   if constexpr (IsComplex<typename Derived::Scalar>()) {
@@ -215,8 +217,8 @@ ApplyGivensLeft(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c,
     const_cast<Eigen::MatrixBase<Derived>&>(a_matrix);
   for (long i = 0; i < a_matrix.cols(); ++i) {
     typename Derived::Scalar tmp = matrix(0, i);
-    matrix(0, i) = ak_c * tmp + ak_sconj * matrix(1, i);
-    matrix(1, i) = -ak_s * tmp + ak_c * matrix(1, i);
+    matrix(0, i) = ak_c * tmp + ak_s * matrix(1, i);
+    matrix(1, i) = -ak_sconj * tmp + ak_c * matrix(1, i);
   }
   return;
 }
@@ -236,8 +238,8 @@ ApplyGivensRight(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c
     const_cast<Eigen::MatrixBase<Derived>&>(a_matrix);
   for (long i = 0; i < a_matrix.rows(); ++i) {
     typename Derived::Scalar tmp = matrix(i, 0);
-    matrix(i, 0) = ak_c * tmp + ak_s * matrix(i, 1);
-    matrix(i, 1) = -ak_sconj * tmp + ak_c * matrix(i, 1);
+    matrix(i, 0) = ak_c * tmp + ak_sconj * matrix(i, 1);
+    matrix(i, 1) = -ak_s * tmp + ak_c * matrix(i, 1);
   }
   return;
 }
@@ -274,7 +276,8 @@ GetGivensEntries(const DataType& ak_a, const DataType& ak_b) {
   real absb = std::abs(ak_b);
   real r = std::hypot(absa, absb);
   res.at(0) = absa / r;
-  res.at(1) = std::polar(absb / r, std::arg(ak_b) -std::arg(ak_a));
+  res.at(1) = std::polar(absb / r, -std::arg(ak_b) + std::arg(ak_a));
+  //res.at(1) = std::conj(ak_b)/r * std::polar(1.0, std::arg(ak_a));
   res.at(2) = std::conj(res.at(1));
   return res;
 }
@@ -641,7 +644,7 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
     //std::cout << a_matrix << std::endl << std::endl;
     int status = deflate(a_matrix, begin, end, ak_tol);
     if (status > 0) {
-      std::cout << "deflation after: " << steps_since_deflation << " steps" << std::endl;
+      //std::cout << "deflation after: " << steps_since_deflation << " steps" << std::endl;
       steps_since_deflation = 0;
       if (status > 1) {
         end = begin - 1;
@@ -651,7 +654,7 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
       ++steps_since_deflation;
       bool exceptional_shift = false;
       if (steps_since_deflation > 10) {
-        std::cout << "exceptional shift" << std::endl;
+        //std::cout << "exceptional shift" << std::endl;
         exceptional_shift = true;
         steps_since_deflation = 1;
       }
