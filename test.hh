@@ -104,27 +104,35 @@ void RunTest(std::ofstream& a_summary_file, std::ofstream& a_eigenvalue_file,
   MatrixType M;
   std::vector<C> res;
   std::tie(M, res) = CreateRandom<MatrixType>(ak_size, ak_is_hermitian, ak_seed);
-  //std::tie(M, std::ignore) = CreateRandom<MatrixType>(ak_size, ak_is_hermitian, ak_seed);
-  //M = RandomNonSymmRealEv<MatrixType>(ak_size);
-//  Eigen::VectorXcd test;
+
 //  if constexpr ( IsComplex<MatrixType::Scalar>() ) {
 //    std::tie(std::ignore, test) = CalculateGeneralEigenvalues(M, false);
 //  }
-//  res = ConvertToVec(test);
 
   nla_exam::HessenbergTransformation<>(M, ak_is_hermitian);
 
-//  res = ConvertToVec(test);
-//  std::vector<std::complex<double>> comp_eigenvalues = ConvertToVec(test);
-
   auto start = std::chrono::steady_clock::now();
   std::vector<C> estimate;
+  //Eigen::VectorXcd test;
   if (ak_is_hermitian) {
     estimate = nla_exam::QrMethod<true>(M.real(), ak_tol);
+//    Eigen::SelfAdjointEigenSolver<MatrixType> es(M, false);
+//    test = es.eigenvalues();
+//    std::cout << es.info() << std::endl;
+//    estimate = ConvertToVec(test);
   } else {
+//    if constexpr (IsComplex<typename MatrixType::Scalar>()) {
+//      Eigen::ComplexEigenSolver<MatrixType> es(M, false);
+//      test = es.eigenvalues();
+//      std::cout << es.info() << std::endl;
+//    } else {
+//      Eigen::EigenSolver<MatrixType> es(M, false);
+//      test = es.eigenvalues();
+//      std::cout << es.info() << std::endl;
+//    }
+//    estimate = ConvertToVec(test);
     estimate = nla_exam::QrMethod<false>(M, ak_tol);
   }
-
 
   auto end = std::chrono::steady_clock::now();
   std::chrono::duration<double> runtime = (end - start);
@@ -138,7 +146,7 @@ void RunTest(std::ofstream& a_summary_file, std::ofstream& a_eigenvalue_file,
 
 //  std::vector<double> error2 = GetApproximationError(comp_eigenvalues, res);
 //  prefix = GetVariantString(ak_size + 9999, ak_is_hermitian,
-//      IsComplex<typename MatrixType::Scalar>(), ak_seed, ak_tol, runtime);
+//      iscomplex<typename matrixtype::scalar>(), ak_seed, ak_tol, runtime);
 //  PrintSummary(a_summary_file, prefix, error);
 }
 

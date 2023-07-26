@@ -110,7 +110,6 @@ void HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
     if (ak_is_hermitian) {
       matrix(i, Eigen::seqN(i + 2, n - i - 2)) = MatrixType::Zero(1, n - i - 2);
     }
-    // TODO symmetric set rest to 0?
   }
   if constexpr (IsComplex<typename Derived::Scalar>()) {
     if (ak_is_hermitian) {                                                         // Transform complex Hermitian Matrix to Real
@@ -254,10 +253,18 @@ ApplyGivensRight(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c
 template<class DataType> inline
 std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
 GetGivensEntries(const DataType& ak_a, const DataType& ak_b) {
-  std::vector<DataType> res(2);
-  DataType r = std::hypot(ak_a, ak_b);
-  res.at(0) = std::abs(ak_a) / r;
-  res.at(1) = ak_b / r * std::copysign(1, ak_a);
+  std::vector<DataType> res(3);
+  if (std::abs(ak_a) < std::numeric_limits<DataType>::epsilon()) {
+//    res.at(0) = 1;
+//    res.at(1) = 0;
+    res.at(0) = 0;
+    res.at(1) = 1;
+  } else {
+    DataType r = std::hypot(ak_a, ak_b);
+    res.at(0) = std::abs(ak_a) / r;
+    res.at(1) = ak_b / r * std::copysign(1, ak_a);
+  }
+  res.at(2) = res.at(1);
   return res;
 }
 
@@ -274,11 +281,16 @@ GetGivensEntries(const DataType& ak_a, const DataType& ak_b) {
   std::vector<DataType> res(3);
   real absa = std::abs(ak_a);
   real absb = std::abs(ak_b);
-  real r = std::hypot(absa, absb);
-  res.at(0) = absa / r;
-  res.at(1) = std::polar(absb / r, -std::arg(ak_b) + std::arg(ak_a));
-  //res.at(1) = std::conj(ak_b)/r * std::polar(1.0, std::arg(ak_a));
-  res.at(2) = std::conj(res.at(1));
+  if (absa < std::numeric_limits<typename DataType::value_type>::epsilon()) {
+    res.at(0) = 0;
+    res.at(1) = 1;
+    res.at(1) = 1;
+  } else {
+    real r = std::hypot(absa, absb);
+    res.at(0) = absa / r;
+    res.at(1) = std::polar(absb / r, -std::arg(ak_b) + std::arg(ak_a));
+    res.at(2) = std::conj(res.at(1));
+  }
   return res;
 }
 
@@ -287,7 +299,7 @@ typename std::enable_if_t<std::is_arithmetic<DataType>::value, DataType>
 ExceptionalSingleShift() {
   std::random_device dev;
   std::mt19937 rng(dev());
-  std::uniform_real_distribution<DataType> dist(-100,100); // distribution in range [1, 6]
+  std::uniform_real_distribution<DataType> dist(-100,100); // distribution in range [-100, 100]
   return dist(rng);
 }
 
@@ -296,9 +308,7 @@ typename std::enable_if_t<!std::is_arithmetic<DataType>::value, DataType>
 ExceptionalSingleShift() {
   std::random_device dev;
   std::mt19937 rng(dev());
-  std::uniform_real_distribution<typename DataType::value_type> dist(-100,100); // distribution in range [1, 6]
-  DataType res = dist(rng);
-  //return res;
+  std::uniform_real_distribution<typename DataType::value_type> dist(-100,100); // distribution in range [-100, 100]
   return {dist(rng), dist(rng)};
 }
 
@@ -354,8 +364,7 @@ ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix, const bool ak_excepti
   } else {
     if (entries.size() == 2) entries.push_back(entries.at(1));
 
-    // TODO optimize indices
-    // itnital step
+    // inital step
     switch (n) {
       case 2:
         ApplyGivensLeft<DataType>(matrix, entries.at(0), entries.at(1),
@@ -407,8 +416,11 @@ DoubleShiftParameter(const Eigen::MatrixBase<Derived> &ak_matrix, const int a_in
   res.at(0) = -ak_matrix.trace();
   res.at(1) = ak_matrix.determinant();
   // TODO implicit shift when possible?
+#ifdef SINGLE
   if (res.at(0) * res.at(0) > 4.0 * res.at(1)) {
-    //return std::vector<typename Derived::Scalar>{}; // TODO remove this test
+#ifdef IMPLICIT
+    return std::vector<typename Derived::Scalar>{}; // TODO remove this test
+#endif
     DataType tmp = std::sqrt(res.at(0) * res.at(0) - 4.0 * res.at(1));
     DataType ev1 = (-res.at(0) + tmp) / 2.0;
     DataType ev2 = (-res.at(0) - tmp) / 2.0;
@@ -420,6 +432,7 @@ DoubleShiftParameter(const Eigen::MatrixBase<Derived> &ak_matrix, const int a_in
       res.at(1) = ev2 * ev2;
     }
   }
+#endif
   return res;
 }
 
@@ -458,14 +471,16 @@ void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix, const bool ak
   int n = a_matrix.rows();
   std::vector<typename Derived::Scalar> shift;
   if (ak_exceptional_shift) {
-    shift = ExceptionalDoubleShift<typename Derived::Scalar>();
+    ImplicitQrStep<typename Derived::Scalar, false>(a_matrix, true);
+    return;
+    //shift = ExceptionalDoubleShift<typename Derived::Scalar>();
   } else {
     shift = DoubleShiftParameter<>(a_matrix(Eigen::lastN(2), Eigen::lastN(2)));
   }
-//  if (shift.size() == 0) {    // TODO: remove this test
-//    ImplicitQrStep<typename Derived::Scalar, false>(a_matrix, ak_tol);
-//    return;
-//  }
+  if (shift.size() == 0) {    // TODO: remove this test
+    ImplicitQrStep<typename Derived::Scalar, false>(a_matrix, false);
+    return;
+  }
   // Only first three entries of first col needed
   Matrix m1 = a_matrix(Eigen::seqN(0,3), Eigen::all) *
     a_matrix(Eigen::all, 0) + shift.at(0) *
@@ -503,8 +518,12 @@ int DeflateDiagonal(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin,
                       int &a_end, const double ak_tol = 1e-12) {
   int state = 2;
   for (int i = a_end; i > a_begin; --i) {
-    if (std::abs(a_matrix(i, i - 1)) < ak_tol * (std::abs(a_matrix(i, i)) +
-          std::abs(a_matrix(i - 1, i - 1)))) {
+    if (std::abs(a_matrix(i, i - 1)) < (ak_tol * (std::abs(a_matrix(i, i)) +
+          std::abs(a_matrix(i - 1, i - 1))))) {
+//          std::abs(a_matrix(i - 1, i - 1))) ||
+//        a_matrix(Eigen::seq(a_begin, a_end), Eigen::seq(a_begin, a_end)).array().abs().maxCoeff() < ak_tol) {
+//          std::abs(a_matrix(i - 1, i - 1)))) ||
+//        (std::abs(a_matrix(i, i - 1))) < ak_tol) {
       const_cast<Eigen::MatrixBase<Derived> &>(a_matrix)(i, i - 1) = 0;
       if (state < 2) {
         a_begin = i;
@@ -536,23 +555,30 @@ int DeflateSchur(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin,
                    int &a_end, const double ak_tol = 1e-12) {
   int state = 2;
   for (int i = a_end; i > a_begin; --i) {
-    if (std::abs(a_matrix(i, i - 1)) < ak_tol * std::abs(a_matrix(i, i) +
-          std::abs(a_matrix(i - 1, i - 1)))) {
+    if (std::abs(a_matrix(i, i - 1)) < (ak_tol * (std::abs(a_matrix(i, i)) +
+//    if (std::abs(a_matrix(i, i - 1)) <= (ak_tol * (std::abs(a_matrix(i, i)) +
+         std::abs(a_matrix(i - 1, i - 1))))) {
+//          std::abs(a_matrix(i - 1, i - 1)))) ||
+//        a_matrix.array().abs().maxCoeff() < ak_tol) {
+//         std::abs(a_matrix(i - 1, i - 1)))) ||
+//        (std::abs(a_matrix(i, i - 1))) < ak_tol) {
       const_cast<Eigen::MatrixBase<Derived> &>(a_matrix)(i, i - 1) = 0;
       if (state < 2) {
-        a_begin = i;
-        return 1;                                                             // Subblock to solve found
+        if (i + 1 < a_end) {
+          a_begin = i;
+          return 1;                                                             // Subblock to solve found
+        } else {
+          state = 2;
+        }
       }
-    } else if (state == 2 && (i - 1 > a_begin) &&
-               (std::abs(a_matrix(i - 1, i - 2)) >= ak_tol * (std::abs(a_matrix(
-                  i - 2, i - 2)) + std::abs(a_matrix(i - 1, i - 1))))) {          // Start of the block found
+    } else if (state == 2 && (i - 1 > a_begin)) {
       if (i == a_end) {
         state = 0;
       } else {
         a_end = i;
         state = 1;
       }
-      --i;                                                                        // Next index already checked
+      //--i;                                                                        // Next index already checked
     }
   }
   return state;
@@ -641,8 +667,8 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
 
   // qr iteration
   while (end_of_while < end) {
-    //std::cout << a_matrix << std::endl << std::endl;
     int status = deflate(a_matrix, begin, end, ak_tol);
+    //std::cout << "deflation status: " << status << std::endl;
     if (status > 0) {
       //std::cout << "deflation after: " << steps_since_deflation << " steps" << std::endl;
       steps_since_deflation = 0;
@@ -654,10 +680,26 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
       ++steps_since_deflation;
       bool exceptional_shift = false;
       if (steps_since_deflation > 10) {
-        //std::cout << "exceptional shift" << std::endl;
+//        std::cout << "exceptional shift" << std::endl;
+//        std::cout << a_matrix(Eigen::seq(begin, end), Eigen::seq(begin, end)).array().abs().maxCoeff() << std::endl;
+//        std::cout << a_matrix(Eigen::seq(begin, end), Eigen::seq(begin, end)) << std::endl;
+//        std::cout <<  a_matrix(Eigen::seq(begin, end), Eigen::seq(begin, end)).trace() -
+//        a_matrix(begin, begin) * DataType{end - begin + 1} << std::endl;
+        if (std::abs(a_matrix(Eigen::seq(begin, end), Eigen::seq(begin, end)).trace() -
+        a_matrix(begin, begin) * DataType{end - begin + 1}) < ak_tol) {
+//         std::cout << "dangerous block" << std::endl;
+//         std::cout << a_matrix(Eigen::seq(begin, end), Eigen::seq(begin, end)) << std::endl;
+          const_cast<MatrixType&>(a_matrix)(Eigen::seq(begin, end),Eigen::seq(begin, end)).diagonal(-1).setZero();
+          end = begin;
+          begin = 0;
+          continue;
+        }
         exceptional_shift = true;
         steps_since_deflation = 1;
+//        if constexpr (ak_is_hermitian) {
+//        }
       }
+      //std::cout << "steps" << std::endl;
       step(const_cast<MatrixType&>(a_matrix)(Eigen::seq(begin, end),
               Eigen::seq(begin, end)), exceptional_shift);
     }

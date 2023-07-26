@@ -55,13 +55,17 @@ MatrixType CreateStdRandomTridiagonal(const int ak_size,
 }
 
 
+//TODO replace with better distribution
 template<typename MatrixType>
 MatrixType CreateStdRandomDiagonal(const int ak_size,
                                 const int ak_seed = std::time(nullptr)) {
-  std::srand(ak_seed);
+  //std::srand(ak_seed);
+  std::mt19937 rng(ak_seed);
+  std::uniform_real_distribution<double> distribution(-1000, 1000);
   MatrixType A = MatrixType::Zero(ak_size, ak_size) ;
   for (int i = 0; i < ak_size; ++i) {
-      int x = (std::rand() % 200) - 100;
+    //int x = (std::rand() % 200) - 100;
+    double x = distribution(rng);
     A(i, i) = x;
   }
   return A;
@@ -191,10 +195,11 @@ Matrix RandomNonSymmRealEv(const int ak_size) {
 template<class Matrix>
 Matrix CreateNormal2x2Matrix(const int ak_seed = std::time(nullptr)) {
   Matrix B(2,2);
-  std::srand(ak_seed);
-  std::random_device dev;
-  std::mt19937 rng(dev());
-  std::uniform_int_distribution<int> distribution(-100, 100);
+  //std::random_device dev;
+  //std::mt19937 rng(dev());
+  std::mt19937 rng(ak_seed);
+  //std::uniform_int_distribution<int> distribution(-100, 100);
+  std::uniform_real_distribution<double> distribution(-1000, 1000);
 
   B(0,0) = distribution(rng);
   B(0,1) = distribution(rng);
@@ -207,14 +212,16 @@ template<typename MatrixType>
 MatrixType CreateStdRandomNormalSchur(const int ak_size,
                                 const int ak_seed = std::time(nullptr)) {
   std::srand(ak_seed);
-  std::random_device dev;
-  std::mt19937 rng(dev());
+  std::mt19937 rng(ak_seed);
   std::uniform_int_distribution<int> distribution(-100, 100);
   MatrixType A = MatrixType::Zero(ak_size, ak_size);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnarrowing"
   A(ak_size - 1, ak_size - 1) = typename MatrixType::Scalar{distribution(rng)};
+#pragma GCC diagnostic pop
   for (int i = 0; i < ak_size-1; i+= 2) {
     A(Eigen::seqN(i, 2), Eigen::seqN(i, 2)) = CreateNormal2x2Matrix<MatrixType>(std::rand());
-    MatrixType test = A(Eigen::seqN(i, 2), Eigen::seqN(i, 2));
+    //A(Eigen::seqN(i, 2), Eigen::seqN(i, 2)) = CreateNormal2x2Matrix<MatrixType>(ak_seed);
   }
   return A;
 }
@@ -225,7 +232,6 @@ template<typename MatrixType, typename T = std::complex<double>>
 std::tuple<MatrixType, std::vector<T>>
 CreateRandom(const int ak_size, const bool is_symm,
     const int ak_seed = std::time(nullptr)) {
-  std::srand(ak_seed);
   MatrixType A;
   std::vector<T> res;
   res.reserve(ak_size);
@@ -240,7 +246,7 @@ CreateRandom(const int ak_size, const bool is_symm,
   } else {
     res.resize(ak_size);
     //A = CreateStdRandomSchur<MatrixType>(ak_size, ak_seed);
-    A = CreateStdRandomNormalSchur<MatrixType>(ak_size, std::rand());
+    A = CreateStdRandomNormalSchur<MatrixType>(ak_size, ak_seed);
     for (int i = 0; i < ak_size-1; ++i) {
       T d = (A(i, i) + A(i + 1, i + 1)) / 2.0;
       T  pq = std::sqrt(T{ d * d - A(i, i) * A(i + 1, i + 1)
@@ -255,7 +261,7 @@ CreateRandom(const int ak_size, const bool is_symm,
   }
   std::sort(res.begin(), res.end(), [](T& a, T& b) { return LesserEv(a, b);});
 
-  MatrixType Q = CreateUnitaryMatrix<MatrixType>(ak_size, std::rand());
+  MatrixType Q = CreateUnitaryMatrix<MatrixType>(ak_size, ak_seed);
   A = Q.adjoint() * A * Q;
   return std::tie(A, res);
 }
