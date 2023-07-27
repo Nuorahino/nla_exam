@@ -164,8 +164,6 @@ MatrixType CreateUnitaryMatrix(const int ak_size,
 }
 
 
-
-
 template<class Matrix>
 Matrix RandomSpdMatrix(const int ak_size) {
   //orthogonal matrix
@@ -192,6 +190,7 @@ Matrix RandomNonSymmRealEv(const int ak_size) {
     return B*C;
 }
 
+
 template<class Matrix>
 Matrix CreateNormal2x2Matrix(const int ak_seed = std::time(nullptr)) {
   Matrix B(2,2);
@@ -200,7 +199,6 @@ Matrix CreateNormal2x2Matrix(const int ak_seed = std::time(nullptr)) {
   std::mt19937 rng(ak_seed);
   //std::uniform_int_distribution<int> distribution(-100, 100);
   std::uniform_real_distribution<double> distribution(-1000, 1000);
-
   B(0,0) = distribution(rng);
   B(0,1) = distribution(rng);
   B(1,0) = std::abs(B(0,1));

@@ -30,7 +30,7 @@ Eigen::Vector<T, -1> GetHouseholderVector(const Eigen::MatrixBase<Derived> &ak_x
   Eigen::Vector<T, -1> w = ak_x;
   long n = w.rows();
   T t = w(Eigen::lastN(n-1)).squaredNorm();
-  if (std::abs(t) < std::numeric_limits<decltype(std::abs(t))>::min()) {                            // Better Criteria needed
+  if (std::abs(t) < std::numeric_limits<decltype(std::abs(t))>::min()) {        // Better Criteria needed
     w(0) = 1;
   } else {
     T s = std::sqrt(std::abs(w(0)) * std::abs(w(0)) + t);
@@ -255,8 +255,6 @@ std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
 GetGivensEntries(const DataType& ak_a, const DataType& ak_b) {
   std::vector<DataType> res(3);
   if (std::abs(ak_a) < std::numeric_limits<DataType>::epsilon()) {
-//    res.at(0) = 1;
-//    res.at(1) = 0;
     res.at(0) = 0;
     res.at(1) = 1;
   } else {
@@ -319,16 +317,12 @@ ExceptionalSingleShift() {
  */
 template <class DataType, bool is_symmetric, typename Derived>
 void
-ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix, const bool ak_exceptional_shift) {
+ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix, const bool) {
   Eigen::MatrixBase<Derived>& matrix = const_cast<
     Eigen::MatrixBase<Derived>&>(a_matrix);
   int n = a_matrix.rows();
   DataType shift;
-  if (ak_exceptional_shift) {
-    shift = ExceptionalSingleShift<DataType>();
-  } else {
-    shift = WilkinsonShift<DataType>(a_matrix(Eigen::lastN(2), Eigen::lastN(2)));
-  }
+  shift = WilkinsonShift<DataType>(a_matrix(Eigen::lastN(2), Eigen::lastN(2)));
   auto entries = GetGivensEntries<>(a_matrix(0, 0) - shift, a_matrix(1, 0));    // Parameter for the initial step
   if constexpr (is_symmetric) { // TODO maybe better solution if matrix has symmetric view
     // innitial step
@@ -412,14 +406,12 @@ std::vector<typename Derived::Scalar>>
 DoubleShiftParameter(const Eigen::MatrixBase<Derived> &ak_matrix, const int a_index = 1) {
   typedef typename Derived::Scalar DataType;
   std::vector<typename Derived::Scalar> res(2);
-  //  If Real use the same but with the eigenvalues
   res.at(0) = -ak_matrix.trace();
   res.at(1) = ak_matrix.determinant();
-  // TODO implicit shift when possible?
 #ifdef SINGLE
   if (res.at(0) * res.at(0) > 4.0 * res.at(1)) {
 #ifdef IMPLICIT
-    return std::vector<typename Derived::Scalar>{}; // TODO remove this test
+    return std::vector<typename Derived::Scalar>{}; // For real eigenvalues do a single step
 #endif
     DataType tmp = std::sqrt(res.at(0) * res.at(0) - 4.0 * res.at(1));
     DataType ev1 = (-res.at(0) + tmp) / 2.0;
@@ -436,27 +428,6 @@ DoubleShiftParameter(const Eigen::MatrixBase<Derived> &ak_matrix, const int a_in
   return res;
 }
 
-template <class DataType>
-typename std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
-ExceptionalDoubleShift() {
-  std::random_device dev;
-  std::mt19937 rng(dev());
-  std::uniform_real_distribution<DataType> dist(-100,100); // distribution in range [1, 6]
-  std::vector<DataType> res{dist(rng), dist(rng)};
-
-  return res;
-}
-
-template <class DataType>
-typename std::enable_if_t<!std::is_arithmetic<DataType>::value, std::vector<DataType>>
-ExceptionalDoubleShift() {
-  std::random_device dev;
-  std::mt19937 rng(dev());
-  std::uniform_real_distribution<DataType> dist(-100,100); // distribution in range [1, 6]
-  std::vector<DataType> res{{dist(rng), dist(rng)}, {dist(rng), dist(rng)}};
-  res.push_back(std::conj(res.at(1)));
-  return res;
-}
 
 /* Executes one step of the double shift algorithm
  * Parameter:
@@ -473,11 +444,10 @@ void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix, const bool ak
   if (ak_exceptional_shift) {
     ImplicitQrStep<typename Derived::Scalar, false>(a_matrix, true);
     return;
-    //shift = ExceptionalDoubleShift<typename Derived::Scalar>();
   } else {
     shift = DoubleShiftParameter<>(a_matrix(Eigen::lastN(2), Eigen::lastN(2)));
   }
-  if (shift.size() == 0) {    // TODO: remove this test
+  if (shift.size() == 0) {
     ImplicitQrStep<typename Derived::Scalar, false>(a_matrix, false);
     return;
   }
@@ -556,12 +526,7 @@ int DeflateSchur(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin,
   int state = 2;
   for (int i = a_end; i > a_begin; --i) {
     if (std::abs(a_matrix(i, i - 1)) < (ak_tol * (std::abs(a_matrix(i, i)) +
-//    if (std::abs(a_matrix(i, i - 1)) <= (ak_tol * (std::abs(a_matrix(i, i)) +
-         std::abs(a_matrix(i - 1, i - 1))))) {
-//          std::abs(a_matrix(i - 1, i - 1)))) ||
-//        a_matrix.array().abs().maxCoeff() < ak_tol) {
-//         std::abs(a_matrix(i - 1, i - 1)))) ||
-//        (std::abs(a_matrix(i, i - 1))) < ak_tol) {
+          std::abs(a_matrix(i - 1, i - 1))))) {
       const_cast<Eigen::MatrixBase<Derived> &>(a_matrix)(i, i - 1) = 0;
       if (state < 2) {
         if (i + 1 < a_end) {
@@ -578,7 +543,6 @@ int DeflateSchur(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin,
         a_end = i;
         state = 1;
       }
-      //--i;                                                                        // Next index already checked
     }
   }
   return state;
@@ -596,7 +560,8 @@ std::vector<DataType>
 CalcEigenvaluesFromSchur(const Eigen::MatrixBase<Derived>& ak_matrix,
                          const bool ak_matrix_is_diagonal = false) {
   std::vector<DataType> res(ak_matrix.rows());
-  if (ak_matrix_is_diagonal || ak_matrix.rows() == 1) {
+  //if (ak_matrix_is_diagonal || ak_matrix.rows() == 1) {
+  if (ak_matrix.rows() == 1) {
     for (int i = 0; i < ak_matrix.rows(); ++i) {
       res.at(i) = ak_matrix(i, i);
     }
@@ -608,14 +573,12 @@ CalcEigenvaluesFromSchur(const Eigen::MatrixBase<Derived>& ak_matrix,
 #pragma GCC diagnostic pop
         res.at(i) = ak_matrix(i, i);
       } else {                                                                    // Eigenvalue in a 2x2 block
-        typename Derived::Scalar d = (ak_matrix(i, i) +
-            ak_matrix(i + 1, i + 1)) / 2.0;
-        DataType pq = std::sqrt(DataType{ d * d - ak_matrix(i, i) *
-            ak_matrix(i + 1, i + 1) + ak_matrix(i, i + 1) *
-            ak_matrix(i + 1, i)});
-        res.at(i) = d - pq;                                                       // First eigenvalue
+        Eigen::MatrixXcd test = ak_matrix(Eigen::seq(i, i+1), Eigen::seq(i, i+1));
+        DataType trace = test.trace();
+        DataType tmp = std::sqrt(trace * trace - 4.0 * test.determinant());
+        res.at(i) = (trace + tmp) / 2.0;
         ++i;
-        res.at(i) = d + pq;                                                       // Second eigenvalue
+        res.at(i) = (trace - tmp) / 2.0;
       }
     }
 #pragma GCC diagnostic ignored "-Wfloat-equal"
@@ -658,19 +621,22 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
       end_of_while = 1;
       step = &DoubleShiftQrStep<StepMatrix>;
       deflate = &DeflateSchur<Derived>;
+      //deflate = &DeflateDiagonal<Derived>;
       tridiagonal_result = false;
   } else {
     step = &ImplicitQrStep<typename MatrixType::Scalar, ak_is_hermitian,
          StepMatrix>;
+  if constexpr (std::is_arithmetic<typename Derived::Scalar>::value) {
+      deflate = &DeflateSchur<Derived>;
+  } else {
     deflate = &DeflateDiagonal<Derived>;
+  }
   }
 
   // qr iteration
   while (end_of_while < end) {
     int status = deflate(a_matrix, begin, end, ak_tol);
-    //std::cout << "deflation status: " << status << std::endl;
     if (status > 0) {
-      //std::cout << "deflation after: " << steps_since_deflation << " steps" << std::endl;
       steps_since_deflation = 0;
       if (status > 1) {
         end = begin - 1;
@@ -680,26 +646,21 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
       ++steps_since_deflation;
       bool exceptional_shift = false;
       if (steps_since_deflation > 10) {
-//        std::cout << "exceptional shift" << std::endl;
-//        std::cout << a_matrix(Eigen::seq(begin, end), Eigen::seq(begin, end)).array().abs().maxCoeff() << std::endl;
-//        std::cout << a_matrix(Eigen::seq(begin, end), Eigen::seq(begin, end)) << std::endl;
-//        std::cout <<  a_matrix(Eigen::seq(begin, end), Eigen::seq(begin, end)).trace() -
-//        a_matrix(begin, begin) * DataType{end - begin + 1} << std::endl;
-        if (std::abs(a_matrix(Eigen::seq(begin, end), Eigen::seq(begin, end)).trace() -
-        a_matrix(begin, begin) * DataType{end - begin + 1}) < ak_tol) {
-//         std::cout << "dangerous block" << std::endl;
-//         std::cout << a_matrix(Eigen::seq(begin, end), Eigen::seq(begin, end)) << std::endl;
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnarrowing"
+        if ((std::abs(a_matrix(Eigen::seq(begin, end), Eigen::seq(begin, end)).trace() -
+        a_matrix(begin, begin) * DataType{end - begin + 1}) + a_matrix(Eigen::seq(begin, end), Eigen::seq(begin, end)).diagonal(-1).norm()) < ak_tol) {
+#pragma GCC diagnostic pop
           const_cast<MatrixType&>(a_matrix)(Eigen::seq(begin, end),Eigen::seq(begin, end)).diagonal(-1).setZero();
           end = begin;
           begin = 0;
           continue;
         }
-        exceptional_shift = true;
+        if constexpr (!ak_is_hermitian) {
+          exceptional_shift = true;
+        }
         steps_since_deflation = 1;
-//        if constexpr (ak_is_hermitian) {
-//        }
       }
-      //std::cout << "steps" << std::endl;
       step(const_cast<MatrixType&>(a_matrix)(Eigen::seq(begin, end),
               Eigen::seq(begin, end)), exceptional_shift);
     }

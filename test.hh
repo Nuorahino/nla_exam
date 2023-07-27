@@ -113,25 +113,33 @@ void RunTest(std::ofstream& a_summary_file, std::ofstream& a_eigenvalue_file,
 
   auto start = std::chrono::steady_clock::now();
   std::vector<C> estimate;
-  //Eigen::VectorXcd test;
+#ifdef EIGEN
+ Eigen::VectorXcd test;
+#endif
   if (ak_is_hermitian) {
+#ifdef EIGEN
+    Eigen::SelfAdjointEigenSolver<MatrixType> es(M, false);
+    test = es.eigenvalues();
+    if(es.info()) std::cout << "failed" << std::endl;
+    estimate = ConvertToVec(test);
+#else
     estimate = nla_exam::QrMethod<true>(M.real(), ak_tol);
-//    Eigen::SelfAdjointEigenSolver<MatrixType> es(M, false);
-//    test = es.eigenvalues();
-//    std::cout << es.info() << std::endl;
-//    estimate = ConvertToVec(test);
+#endif
   } else {
-//    if constexpr (IsComplex<typename MatrixType::Scalar>()) {
-//      Eigen::ComplexEigenSolver<MatrixType> es(M, false);
-//      test = es.eigenvalues();
-//      std::cout << es.info() << std::endl;
-//    } else {
-//      Eigen::EigenSolver<MatrixType> es(M, false);
-//      test = es.eigenvalues();
-//      std::cout << es.info() << std::endl;
-//    }
-//    estimate = ConvertToVec(test);
+#ifdef EIGEN
+    if constexpr (IsComplex<typename MatrixType::Scalar>()) {
+      Eigen::ComplexEigenSolver<MatrixType> es(M, false);
+      test = es.eigenvalues();
+      if(es.info()) std::cout << "failed" << std::endl;
+    } else {
+      Eigen::EigenSolver<MatrixType> es(M, false);
+      test = es.eigenvalues();
+      if(es.info()) std::cout << "failed" << std::endl;
+    }
+    estimate = ConvertToVec(test);
+#else
     estimate = nla_exam::QrMethod<false>(M, ak_tol);
+#endif
   }
 
   auto end = std::chrono::steady_clock::now();

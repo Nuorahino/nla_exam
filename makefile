@@ -9,9 +9,9 @@ DEBUG := -g -Wall -Wextra -Wfloat-equal -Wshadow -Wunreachable-code -fsanitize=a
 
 CFLAGS := $(INCL) -std=c++17 -llapack $(CPPFLAGS) -DVERSION=$(BASEVERSION)
 
-cfiles := main.cc test.cc
+cfiles := main.cc test.cc test_cases.cc
 
-hfiles := test.hh qr.hh helpfunctions/helpfunctions.hh
+hfiles := test.hh qr.hh helpfunctions/helpfunctions.hh test_cases.hh
 
 
 all: debug O1 O2 O3
