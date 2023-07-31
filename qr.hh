@@ -253,6 +253,7 @@ ApplyGivensRight(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c
 template<class DataType> inline
 std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
 GetGivensEntries(const DataType& ak_a, const DataType& ak_b) {
+  //std::vector<DataType> res(2);
   std::vector<DataType> res(3);
   if (std::abs(ak_a) < std::numeric_limits<DataType>::epsilon()) {
     res.at(0) = 0;
@@ -403,7 +404,7 @@ ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix, const bool) {
 template <class Derived>
 typename std::enable_if_t<std::is_arithmetic<typename Derived::Scalar>::value,
 std::vector<typename Derived::Scalar>>
-DoubleShiftParameter(const Eigen::MatrixBase<Derived> &ak_matrix, const int a_index = 1) {
+DoubleShiftParameter(const Eigen::MatrixBase<Derived> &ak_matrix) {
   typedef typename Derived::Scalar DataType;
   std::vector<typename Derived::Scalar> res(2);
   res.at(0) = -ak_matrix.trace();
@@ -461,8 +462,7 @@ void DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix, const bool ak
   ApplyHouseholderRight(w, matrix(Eigen::seqN(0, end), Eigen::seqN(0, 3)));
   ApplyHouseholderLeft(w, matrix(Eigen::seqN(0, 3), Eigen::all));
   for (int i = 0; i < n - 3; ++i) {                                             //  Buldge chasing
-    Eigen::Vector<typename Derived::Scalar, -1> w = GetHouseholderVector(matrix(
-          Eigen::seqN(i + 1, 3), i));
+    w = GetHouseholderVector(matrix( Eigen::seqN(i + 1, 3), i));
     end = std::min(i+4, n-1);
     ApplyHouseholderRight(w, matrix(Eigen::seq(0, end), Eigen::seqN(i+1, 3)));
     ApplyHouseholderLeft(w, matrix(Eigen::seqN(i+1, 3), Eigen::seq(i, n-1)));
@@ -488,12 +488,8 @@ int DeflateDiagonal(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin,
                       int &a_end, const double ak_tol = 1e-12) {
   int state = 2;
   for (int i = a_end; i > a_begin; --i) {
-    if (std::abs(a_matrix(i, i - 1)) < (ak_tol * (std::abs(a_matrix(i, i)) +
+    if (std::abs(a_matrix(i, i - 1)) <= (ak_tol * (std::abs(a_matrix(i, i)) +
           std::abs(a_matrix(i - 1, i - 1))))) {
-//          std::abs(a_matrix(i - 1, i - 1))) ||
-//        a_matrix(Eigen::seq(a_begin, a_end), Eigen::seq(a_begin, a_end)).array().abs().maxCoeff() < ak_tol) {
-//          std::abs(a_matrix(i - 1, i - 1)))) ||
-//        (std::abs(a_matrix(i, i - 1))) < ak_tol) {
       const_cast<Eigen::MatrixBase<Derived> &>(a_matrix)(i, i - 1) = 0;
       if (state < 2) {
         a_begin = i;
@@ -525,7 +521,7 @@ int DeflateSchur(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin,
                    int &a_end, const double ak_tol = 1e-12) {
   int state = 2;
   for (int i = a_end; i > a_begin; --i) {
-    if (std::abs(a_matrix(i, i - 1)) < (ak_tol * (std::abs(a_matrix(i, i)) +
+    if (std::abs(a_matrix(i, i - 1)) <= (ak_tol * (std::abs(a_matrix(i, i)) +
           std::abs(a_matrix(i - 1, i - 1))))) {
       const_cast<Eigen::MatrixBase<Derived> &>(a_matrix)(i, i - 1) = 0;
       if (state < 2) {
@@ -560,8 +556,7 @@ std::vector<DataType>
 CalcEigenvaluesFromSchur(const Eigen::MatrixBase<Derived>& ak_matrix,
                          const bool ak_matrix_is_diagonal = false) {
   std::vector<DataType> res(ak_matrix.rows());
-  //if (ak_matrix_is_diagonal || ak_matrix.rows() == 1) {
-  if (ak_matrix.rows() == 1) {
+  if (ak_matrix_is_diagonal || ak_matrix.rows() == 1) {
     for (int i = 0; i < ak_matrix.rows(); ++i) {
       res.at(i) = ak_matrix(i, i);
     }
@@ -646,16 +641,16 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
       ++steps_since_deflation;
       bool exceptional_shift = false;
       if (steps_since_deflation > 10) {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wnarrowing"
-        if ((std::abs(a_matrix(Eigen::seq(begin, end), Eigen::seq(begin, end)).trace() -
-        a_matrix(begin, begin) * DataType{end - begin + 1}) + a_matrix(Eigen::seq(begin, end), Eigen::seq(begin, end)).diagonal(-1).norm()) < ak_tol) {
-#pragma GCC diagnostic pop
-          const_cast<MatrixType&>(a_matrix)(Eigen::seq(begin, end),Eigen::seq(begin, end)).diagonal(-1).setZero();
-          end = begin;
-          begin = 0;
-          continue;
-        }
+//#pragma GCC diagnostic push
+//#pragma GCC diagnostic ignored "-Wnarrowing"
+//        if ((std::abs(a_matrix(Eigen::seq(begin, end), Eigen::seq(begin, end)).trace() -
+//        a_matrix(begin, begin) * DataType{end - begin + 1}) + a_matrix(Eigen::seq(begin, end), Eigen::seq(begin, end)).diagonal(-1).norm()) < ak_tol) {
+//#pragma GCC diagnostic pop
+//          const_cast<MatrixType&>(a_matrix)(Eigen::seq(begin, end),Eigen::seq(begin, end)).diagonal(-1).setZero();
+//          end = begin;
+//          begin = 0;
+//          continue;
+//        }
         if constexpr (!ak_is_hermitian) {
           exceptional_shift = true;
         }

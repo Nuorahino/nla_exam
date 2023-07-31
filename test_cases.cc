@@ -8,17 +8,20 @@ Eigen::MatrixXd doubleShiftMatrixProblem() {
   return Eigen::MatrixXd{{2, -1, 0}, {1, 2, -1}, {0, 1, 2}};
 }
 
-Eigen::MatrixXcd wilkinsonShiftMatrixProblem() {
+Eigen::MatrixXd wilkinsonShiftMatrixProblem() {
   return Eigen::MatrixXd{{0.0, 0.0, 1.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0}};
 }
 
+// Not diagonalizable
 Eigen::MatrixXd Multiple0evProblem() {
-  return Eigen::MatrixXd{{2, 0, 0}, {1, 0, 0}, {0, 3, 0}};
+  return Eigen::MatrixXd{{2, 0, 0}, {1, 1e-22, 0}, {0, 3, 0}};
+  //return Eigen::MatrixXd{{-1e-19, 0, 0}, {2, 0, 0}, {0, 3, 1e-18}};
 }
 
 Eigen::MatrixXd ZeroMatrixProblem() {
-  //return Eigen::MatrixXd{{1e-16, 10e-15, 6e-15}, {-2e-14, -1e-22, -7e-15}, {0, -1e-22, 2e-16}};
-  return Eigen::MatrixXd{{2e-16, 1e-17, 0}, {1e-15, 2e-16, -1e-22}, {0, -1e-42, 2e-16}};
+  //return Eigen::MatrixXd{{1e-16, 10e-15, 0}, {-2e-14, -1e-22, -7e-15}, {0, -1e-22, 0}};
+  return Eigen::MatrixXd{{2e-16, 1e-17, 0}, {1e-15, 2e-16, -1e-22}, {0, -1e-22, 2e-16}};
+  //return Eigen::MatrixXd{{1e-16, 1e-17, 0}, {1e-15, 2e-16, -1e-22}, {0, -1e-22, 1e-16}};
 }
 
 Eigen::MatrixXd SimilarEvs() {
@@ -41,7 +44,7 @@ void run_small_tests() {
   es.compute(test1);
   std::cout << es.eigenvalues() << std::endl;
 
-  Eigen::MatrixXcd test2 = wilkinsonShiftMatrixProblem();
+  Eigen::MatrixXd test2 = wilkinsonShiftMatrixProblem();
   estimate = nla_exam::QrMethod<false>(test2);
   std::cout << "test2: " << std::endl;
   std::cout << estimate << std::endl << std::endl;;
@@ -49,14 +52,14 @@ void run_small_tests() {
   std::cout << esc.eigenvalues() << std::endl;
 
   Eigen::MatrixXcd test3 = Multiple0evProblem();
-  estimate = nla_exam::QrMethod<false>(test3);
+  estimate = nla_exam::QrMethod<false>(test3, 1e-4);
   std::cout << "test3: " << std::endl;
   std::cout << estimate << std::endl << std::endl;
   esc.compute(test3);
   std::cout << esc.eigenvalues() << std::endl;
 
   Eigen::MatrixXd test4 = ZeroMatrixProblem();
-  estimate = nla_exam::QrMethod<true>(test4, 1e-30);
+  estimate = nla_exam::QrMethod<true>(test4);
   std::cout << "test4: " << std::endl;
   std::cout << estimate << std::endl << std::endl;
   es.compute(test4);

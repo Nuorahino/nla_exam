@@ -6,7 +6,7 @@
 
 Eigen::MatrixXd doubleShiftMatrixProblem();
 
-Eigen::MatrixXcd wilkinsonShiftMatrixProblem();
+Eigen::MatrixXd wilkinsonShiftMatrixProblem();
 
 Eigen::MatrixXd Multiple0evProblem();
 

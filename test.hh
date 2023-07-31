@@ -152,10 +152,6 @@ void RunTest(std::ofstream& a_summary_file, std::ofstream& a_eigenvalue_file,
   PrintSummary(a_summary_file, prefix, error);
   PrintEigenvalues(a_eigenvalue_file, prefix, estimate, error);
 
-//  std::vector<double> error2 = GetApproximationError(comp_eigenvalues, res);
-//  prefix = GetVariantString(ak_size + 9999, ak_is_hermitian,
-//      iscomplex<typename matrixtype::scalar>(), ak_seed, ak_tol, runtime);
-//  PrintSummary(a_summary_file, prefix, error);
 }
 
 
