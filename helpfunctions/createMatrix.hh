@@ -55,18 +55,16 @@ MatrixType CreateStdRandomTridiagonal(const int ak_size,
 }
 
 
-//TODO replace with better distribution
 template<typename MatrixType>
-MatrixType CreateStdRandomDiagonal(const int ak_size,
+MatrixType
+CreateStdRandomDiagonal(const int ak_size,
                                 const int ak_seed = std::time(nullptr)) {
   //std::srand(ak_seed);
   std::mt19937 rng(ak_seed);
   std::uniform_real_distribution<double> distribution(-1000, 1000);
   MatrixType A = MatrixType::Zero(ak_size, ak_size) ;
   for (int i = 0; i < ak_size; ++i) {
-    //int x = (std::rand() % 200) - 100;
-    double x = distribution(rng);
-    A(i, i) = x;
+    A(i, i) = distribution(rng);
   }
   return A;
 }
@@ -192,16 +190,31 @@ Matrix RandomNonSymmRealEv(const int ak_size) {
 
 
 template<class Matrix>
-Matrix CreateNormal2x2Matrix(const int ak_seed = std::time(nullptr)) {
+std::enable_if_t<std::is_arithmetic<typename Matrix::Scalar>::value, Matrix>
+CreateNormal2x2Matrix(const int ak_seed = std::time(nullptr)) {
   Matrix B(2,2);
-  //std::random_device dev;
-  //std::mt19937 rng(dev());
   std::mt19937 rng(ak_seed);
-  //std::uniform_int_distribution<int> distribution(-100, 100);
   std::uniform_real_distribution<double> distribution(-1000, 1000);
   B(0,0) = distribution(rng);
   B(0,1) = distribution(rng);
   B(1,0) = std::abs(B(0,1));
+  B(1,1) = B(0,0);
+  return B;
+}
+
+template<class Matrix>
+std::enable_if_t<!std::is_arithmetic<typename Matrix::Scalar>::value, Matrix>
+CreateNormal2x2Matrix(const int ak_seed = std::time(nullptr)) {
+  Matrix B(2,2);
+  std::mt19937 rng(ak_seed);
+  std::uniform_real_distribution<double> distribution(-1000, 1000);
+  B(0,0) = std::complex<double>{distribution(rng), distribution(rng)};
+  B(0,1) = std::complex<double>{distribution(rng), distribution(rng)};
+  if (distribution(rng) > 0) {
+    B(1,0) = B(0,1);
+  } else {
+    B(1,0) = std::conj(B(0,1));
+  }
   B(1,1) = B(0,0);
   return B;
 }
@@ -246,18 +259,23 @@ CreateRandom(const int ak_size, const bool is_symm,
     //A = CreateStdRandomSchur<MatrixType>(ak_size, ak_seed);
     A = CreateStdRandomNormalSchur<MatrixType>(ak_size, ak_seed);
     for (int i = 0; i < ak_size-1; ++i) {
-      T d = (A(i, i) + A(i + 1, i + 1)) / 2.0;
-      T  pq = std::sqrt(T{ d * d - A(i, i) * A(i + 1, i + 1)
-            + A(i, i + 1) * A(i + 1, i)});
-      res.at(i) = d - pq;                                                         // First eigenvalue
+    T trace = A(Eigen::seq(i, i+1), Eigen::seq(i, i+1)).trace();
+    T tmp = std::sqrt(trace * trace - 4.0 * A(Eigen::seq(i, i+1), Eigen::seq(i, i+1)).determinant());
+    T ev1 = (trace + tmp) / 2.0;
+    T ev2 = (trace - tmp) / 2.0;
+//      T d = (A(i, i) + A(i + 1, i + 1)) / 2.0;
+//      T  pq = std::sqrt(T{ d * d - A(i, i) * A(i + 1, i + 1)
+//            + A(i, i + 1) * A(i + 1, i)});
+//      res.at(i) = d - pq;                                                         // First eigenvalue
+      res.at(i) = ev1;                                                         // First eigenvalue
       ++i;
-      res.at(i) = d + pq;                                                         // Second eigenvalue
+//      res.at(i) = d + pq;                                                         // Second eigenvalue
+      res.at(i) = ev2;                                                         // Second eigenvalue
     }
     if (ak_size % 2 == 1) {
       res.at(ak_size - 1) = A(ak_size - 1, ak_size - 1);
     }
   }
-  std::sort(res.begin(), res.end(), [](T& a, T& b) { return LesserEv(a, b);});
 
   MatrixType Q = CreateUnitaryMatrix<MatrixType>(ak_size, ak_seed);
   A = Q.adjoint() * A * Q;

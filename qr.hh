@@ -417,7 +417,7 @@ DoubleShiftParameter(const Eigen::MatrixBase<Derived> &ak_matrix) {
     DataType tmp = std::sqrt(res.at(0) * res.at(0) - 4.0 * res.at(1));
     DataType ev1 = (-res.at(0) + tmp) / 2.0;
     DataType ev2 = (-res.at(0) - tmp) / 2.0;
-    if (std::abs(ev1 - ak_matrix(a_index, a_index)) < std::abs(ev2 - ak_matrix(a_index, a_index))) {
+    if (std::abs(ev1 - ak_matrix(1, 1)) < std::abs(ev2 - ak_matrix(1, 1))) {
       res.at(0) = -2.0 * ev1;
       res.at(1) = ev1 * ev1;
     } else {
@@ -616,16 +616,11 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
       end_of_while = 1;
       step = &DoubleShiftQrStep<StepMatrix>;
       deflate = &DeflateSchur<Derived>;
-      //deflate = &DeflateDiagonal<Derived>;
       tridiagonal_result = false;
   } else {
     step = &ImplicitQrStep<typename MatrixType::Scalar, ak_is_hermitian,
          StepMatrix>;
-  if constexpr (std::is_arithmetic<typename Derived::Scalar>::value) {
-      deflate = &DeflateSchur<Derived>;
-  } else {
     deflate = &DeflateDiagonal<Derived>;
-  }
   }
 
   // qr iteration

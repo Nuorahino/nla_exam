@@ -1,5 +1,5 @@
 #!/bin/bash
-make O1 CPPFLAGS="-DSINGLE -DIMPLICIT" BASEVERSION=10
+make O1 CPPFLAGS="-DSINGLE -DIMPLICIT -DHALF -DFULL" BASEVERSION=10
 for i in $(seq 1 20);
 do
   echo $i
@@ -23,7 +23,7 @@ do
     ./build/O1 1 500 $i
 done
 echo "Double done"
-make O1 CPPFLAGS="-DEIGEN" BASEVERSION=99
+make O1 CPPFLAGS="-DEIGEN -DHALF" BASEVERSION=99
 for i in $(seq 1 20);
 do
   echo $i
