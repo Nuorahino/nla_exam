@@ -150,7 +150,7 @@ void RunTest(std::ofstream& a_summary_file, std::ofstream& a_eigenvalue_file,
       IsComplex<typename MatrixType::Scalar>(), ak_seed, ak_tol, runtime);
   std::vector<double> error = GetApproximationError(estimate, res);
   PrintSummary(a_summary_file, prefix, error);
-  PrintEigenvalues(a_eigenvalue_file, prefix, estimate, error);
+  //PrintEigenvalues(a_eigenvalue_file, prefix, estimate, error);
 
 }
 

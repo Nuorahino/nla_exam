@@ -244,11 +244,12 @@ std::tuple<MatrixType, std::vector<T>>
 CreateRandom(const int ak_size, const bool is_symm,
     const int ak_seed = std::time(nullptr)) {
   MatrixType A;
+  std::srand(ak_seed);
   std::vector<T> res;
   res.reserve(ak_size);
 
   if (is_symm) {
-    A = CreateStdRandomDiagonal<MatrixType>(ak_size, ak_seed);
+    A = CreateStdRandomDiagonal<MatrixType>(ak_size, std::rand());
     std::vector<typename MatrixType::value_type> real_res =
       ConvertToVec(A.diagonal());
     for (auto& x : real_res) {
@@ -257,7 +258,7 @@ CreateRandom(const int ak_size, const bool is_symm,
   } else {
     res.resize(ak_size);
     //A = CreateStdRandomSchur<MatrixType>(ak_size, ak_seed);
-    A = CreateStdRandomNormalSchur<MatrixType>(ak_size, ak_seed);
+    A = CreateStdRandomNormalSchur<MatrixType>(ak_size, std::rand());
     for (int i = 0; i < ak_size-1; ++i) {
     T trace = A(Eigen::seq(i, i+1), Eigen::seq(i, i+1)).trace();
     T tmp = std::sqrt(trace * trace - 4.0 * A(Eigen::seq(i, i+1), Eigen::seq(i, i+1)).determinant());
