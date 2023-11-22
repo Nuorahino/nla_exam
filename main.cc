@@ -11,7 +11,7 @@
 // Maybe use std::optional instead
 int main(int argc, char** argv) {
   std::string filename = GetFileName();
-  std::string basedir = "/home/georg/uni/10_sem23/ba/src/nla_exam/";
+  std::string basedir = "/home/georg/uni/11_sem23_24/ba/src/";
 
   std::ofstream summary_file(basedir + "testresults/summary/" + filename);
   std::ofstream eigenvalue_file(basedir + "testresults/eigenvalues/" + filename);
@@ -32,6 +32,7 @@ int main(int argc, char** argv) {
   std::cout << "max_size: " << max_size << std::endl;
   for( int i = start; i <= max_size; ++i ) {
     RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, false, 1e-12);
+    // This fails for i = 250
     RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, false, 1e-6);
 #ifdef HALF
     RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-12);

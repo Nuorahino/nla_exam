@@ -129,8 +129,8 @@ void HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
  * - ak_matrix: 2x2 Matrix of which to calculate the shift parameter
  * Return: value of the shift parameter
  */
-template <class DataType, class Derived> inline
-std::enable_if_t<std::is_arithmetic<DataType>::value, DataType>
+template <class DataType, bool is_symmetric, class Derived> inline
+std::enable_if_t<is_symmetric && std::is_arithmetic<DataType>::value, DataType>
 WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
   DataType d = (ak_matrix(0, 0) - ak_matrix(1, 1)) / 2.0;
   if (d >=  0) {
@@ -140,7 +140,25 @@ WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
   }
 }
 
-template <class DataType, class Derived>
+
+template <class DataType, bool is_symmetric, class Derived> inline
+std::enable_if_t<!is_symmetric && std::is_arithmetic<DataType>::value, DataType>
+WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
+    DataType trace = ak_matrix.trace();
+    DataType tmp = std::sqrt(trace * trace - 4.0 * ak_matrix.determinant());
+    DataType ev1 = (trace + tmp) / 2.0;
+    DataType ev2 = (trace - tmp) / 2.0;
+
+    DataType entry;
+      entry = ak_matrix(1, 1);
+    if (std::abs(ev1 - entry) < std::abs(ev2 - entry)) {        // return the nearest eigenvalue
+      return ev1;
+    } else {
+        return ev2;
+      }
+}
+
+template <class DataType, bool is_symmetric, class Derived>
 std::enable_if_t<IsComplex<DataType>(), DataType>
 WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
     DataType trace = ak_matrix.trace();
@@ -323,7 +341,7 @@ ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix, const bool) {
     Eigen::MatrixBase<Derived>&>(a_matrix);
   int n = a_matrix.rows();
   DataType shift;
-  shift = WilkinsonShift<DataType>(a_matrix(Eigen::lastN(2), Eigen::lastN(2)));
+  shift = WilkinsonShift<DataType, is_symmetric>(a_matrix(Eigen::lastN(2), Eigen::lastN(2)));
   auto entries = GetGivensEntries<>(a_matrix(0, 0) - shift, a_matrix(1, 0));    // Parameter for the initial step
   if constexpr (is_symmetric) { // TODO maybe better solution if matrix has symmetric view
     // innitial step
