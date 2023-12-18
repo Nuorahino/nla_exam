@@ -500,7 +500,7 @@ DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
  */
 template <class Derived>
 int
-DeflateDiagonal(const Eigen::MatrixBase<Derived> a_matrix, int a_begin, int a_end,
+DeflateDiagonal(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin, int &a_end,
                 const double ak_tol = 1e-12) {
   int state = 2;
   for (int i = a_end; i > a_begin; --i) {
