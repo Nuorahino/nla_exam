@@ -263,7 +263,7 @@ template <class DataType>
 inline std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
 GetGivensEntries(const DataType &ak_a, const DataType &ak_b) {
   std::vector<DataType> res(3);
-  if (std::abs(ak_a) < std::numeric_limits<DataType>::epsilon()) {
+  if (std::abs(ak_a) <= std::numeric_limits<DataType>::epsilon()) {
     res.at(0) = 0;
     res.at(1) = 1;
   } else {
@@ -288,7 +288,7 @@ GetGivensEntries(const DataType &ak_a, const DataType &ak_b) {
   std::vector<DataType> res(3);
   real absa = std::abs(ak_a);
   real absb = std::abs(ak_b);
-  if (absa < std::numeric_limits<typename DataType::value_type>::epsilon()) {
+  if (absa <= std::numeric_limits<typename DataType::value_type>::epsilon()) {
     res.at(0) = 0;
     res.at(1) = 1;
     res.at(1) = 1;
