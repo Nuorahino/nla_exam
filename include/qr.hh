@@ -2,6 +2,7 @@
 #define QR_HH_
 
 /*
+ * TODO (20.12): removed the check for arithmetic in IsComplex, may need to be added elsewhere
  * TODO: optimize for eigen (noalias)
  * TODO: use threads
  */

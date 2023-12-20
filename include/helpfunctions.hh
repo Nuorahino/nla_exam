@@ -15,17 +15,17 @@
 #include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/Sparse>
 
-template <class T>
-inline constexpr std::enable_if_t<
-    std::is_same<T, std::complex<typename T::value_type>>::value, bool>
-IsComplex() {
-  return true;
-}
+// TODO (Georg): Maybe rename to is_std_complex?
+template <typename>
+struct is_complex : std::false_type {};
+
+template <typename T>
+struct is_complex<std::complex<T>> : std::true_type {};
 
 template <class T>
-inline constexpr std::enable_if_t<std::is_arithmetic<T>::value, bool>
+inline constexpr bool
 IsComplex() {
-  return false;
+  return is_complex<T>::value;
 }
 
 template <bool Complex, class T>
