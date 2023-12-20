@@ -15,6 +15,7 @@
 #include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/Sparse>
 
+// TODO (Georg): add a namespace around this file
 // TODO (Georg): Maybe rename to is_std_complex?
 template <typename>
 struct is_complex : std::false_type {};
@@ -53,9 +54,13 @@ struct DoubleType<false> {
  * - ak_matrix: Matrix
  * Return: 'true', if ak_matrix is hermitian, 'false' else
  */
+// TODO (12.11): What to do in case of a matrix of size 0
 template <class Derived>
 std::enable_if_t<!IsComplex<typename Derived::Scalar>(), bool>
 IsHermitian(const Eigen::MatrixBase<Derived>& ak_matrix, const double ak_tol = 1e-14) {
+  if (ak_matrix.rows() != ak_matrix.cols()) {
+    return false;
+  }
   for (int i = 0; i < ak_matrix.rows(); ++i) {
     for (int ii = 0; ii < ak_matrix.rows(); ++ii) {
       if (std::abs(ak_matrix(i, ii) - ak_matrix(ii, i)) >= ak_tol) {
@@ -69,6 +74,9 @@ IsHermitian(const Eigen::MatrixBase<Derived>& ak_matrix, const double ak_tol = 1
 template <class Derived>
 std::enable_if_t<IsComplex<typename Derived::Scalar>(), bool>
 IsHermitian(const Eigen::MatrixBase<Derived>& ak_matrix, const double ak_tol = 1e-14) {
+  if (ak_matrix.rows() != ak_matrix.cols()) {
+    return false;
+  }
   for (int i = 0; i < ak_matrix.rows(); ++i) {
     for (int ii = 0; ii < ak_matrix.rows(); ++ii) {
       if (std::abs(ak_matrix(i, ii) - std::conj(ak_matrix(ii, i))) >= ak_tol) {
