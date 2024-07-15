@@ -89,14 +89,13 @@ IsHermitian(const Eigen::MatrixBase<Derived>& ak_matrix, const double ak_tol = 1
 
 template <class T>
 struct HasLesser {
-  template <class U>
-  static auto test(U*) -> decltype(std::declval<U>() < std::declval<U>());
-  template <typename, typename>
+  template <typename>
   static auto test(...) -> std::false_type;
+  template <class U>
+  static auto test(const U*) -> decltype(std::declval<U>() < std::declval<U>());
 
-  template <class data>
   static constexpr bool check() {
-    return std::is_same<bool, decltype(test<T, T>(0))>::value;
+    return std::is_same<bool, decltype(test<T>(0))>::value;
   }
 };
 
@@ -149,11 +148,15 @@ openData(const std::string& ak_file_to_open) {
     ++number_of_rows;
   }
   if constexpr (MatrixType::IsRowMajor) {
-    return Eigen::Map<MatrixType, 0, Eigen::InnerStride<1>>(
-        entries.data(), number_of_rows, entries.size() / number_of_rows);
+    std::cout << "First Case" << std::endl;
+    return Eigen::Map<MatrixType, 0, Eigen::InnerStride<>>(
+        //entries.data(), number_of_rows, number_of_rows, entries.size() / number_of_rows);
+        entries.data(), number_of_rows, number_of_rows, 1);
   } else {
-    return Eigen::Map<MatrixType, 0, Eigen::OuterStride<1>>(
-        entries.data(), number_of_rows, entries.size() / number_of_rows);
+    std::cout << "Second Case" << std::endl;
+    return Eigen::Map<MatrixType, 0, Eigen::OuterStride<>>(
+        //entries.data(), number_of_rows, number_of_rows, Eigen::OuterStride<>(entries.size() / number_of_rows));
+        entries.data(), number_of_rows, number_of_rows, 1);
   }
 }
 
@@ -164,7 +167,7 @@ operator<<(std::ostream& a_out, const std::vector<C>& ak_v) {
   for (auto iter = ak_v.begin(); iter != ak_v.end(); ++iter) {
     a_out << *iter;
     if (iter + 1 != ak_v.end()) {
-      a_out << ",";
+      a_out << ", ";
     }
   }
   a_out << "}";
