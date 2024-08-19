@@ -13,15 +13,18 @@ add_library(QR INTERFACE include/qr.hh)
 target_compile_options(QR INTERFACE -Wall -Wextra -Wpedantic -Wfloat-equal -Wshadow -Wunreachable-code -Wdouble-promotion -Wmisleading-indentation)
 #target_compile_options(QR INTERFACE -Wall -Wextra)
 
+#find_package(easy_profiler REQUIRED)
+#
+#target_link_libraries(QR easy_profiler)
+
 find_package(Eigen3 3.3)
 
 add_subdirectory(evaluation)
 
 add_subdirectory(tests)
 
+
 #find_package(Catch2 3 REQUIRED)
-
-
 
 #add_executable(tests test.cpp)
 #target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)

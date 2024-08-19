@@ -41,7 +41,8 @@ GetHouseholderVector(const Eigen::MatrixBase<Derived> &ak_x) {
   } else {
     T s = std::sqrt(std::abs(w(0)) * std::abs(w(0)) + t);
     if constexpr (IsComplex<typename Derived::Scalar>()) {
-      s *= std::polar(1.0, std::arg(w(0)));  // Choise to avoid loss of significance
+      s *= w(0) / std::abs(w(0));  // Choise to avoid loss of significance
+      //s *= std::polar(1.0, std::arg(w(0)));  // Does not work for float and double at the same time
     } else {
       if (w(0) < 0) s *= -1;
     }
@@ -73,6 +74,24 @@ ApplyHouseholderRight(const Eigen::MatrixBase<Derived2> &ak_w,
   return;
 }
 
+template <class Derived, class Derived2>
+void
+ApplyHouseholderRight(const Eigen::MatrixBase<Derived2> &ak_w,
+                      const Eigen::MatrixBase<Derived> &a_matrix,
+                      const typename Derived::Scalar beta) {
+  EASY_FUNCTION(profiler::colors::Red);
+  typedef typename Derived::Scalar T;
+  typedef Eigen::MatrixBase<Derived> MatrixType;
+  MatrixType &matrix = const_cast<MatrixType &>(a_matrix);  // Const cast needed for eigen
+
+  //T beta = 2 / ak_w.squaredNorm();
+  for (int i = 0; i < a_matrix.rows(); ++i) {
+    T tmp = beta * a_matrix(i, Eigen::all) * ak_w;
+    matrix(i, Eigen::all) -= tmp * ak_w.adjoint();
+  }
+  return;
+}
+
 /* Apply a Householder Reflection from the left
  * Parameter:
  * - ak_w: Householder Vector
@@ -89,6 +108,25 @@ ApplyHouseholderLeft(const Eigen::MatrixBase<Derived2> &ak_w,
   MatrixType &matrix = const_cast<MatrixType &>(a_matrix);  // Const cast needed for eigen
 
   T beta = 2 / ak_w.squaredNorm();
+  for (int i = 0; i < a_matrix.cols(); ++i) {
+    T tmp = beta * ak_w.dot(a_matrix(Eigen::all, i));  // w.dot(A) = w.adjoint() * A
+    matrix(Eigen::all, i) -= tmp * ak_w;
+  }
+  return;
+}
+
+// TODO(Georg): Decide on if to include beta or not
+template <class Derived, class Derived2>
+void
+ApplyHouseholderLeft(const Eigen::MatrixBase<Derived2> &ak_w,
+                     const Eigen::MatrixBase<Derived> &a_matrix,
+                     const typename Derived::Scalar beta) {
+  EASY_FUNCTION(profiler::colors::Red);
+  typedef typename Derived::Scalar T;
+  typedef Eigen::MatrixBase<Derived> MatrixType;
+  MatrixType &matrix = const_cast<MatrixType &>(a_matrix);  // Const cast needed for eigen
+
+  //T beta = 2 / ak_w.squaredNorm();
   for (int i = 0; i < a_matrix.cols(); ++i) {
     T tmp = beta * ak_w.dot(a_matrix(Eigen::all, i));  // w.dot(A) = w.adjoint() * A
     matrix(Eigen::all, i) -= tmp * ak_w;
@@ -143,7 +181,7 @@ template <class DataType, bool is_symmetric, class Derived>
 inline std::enable_if_t<is_symmetric && std::is_arithmetic<DataType>::value, DataType>
 WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
   EASY_FUNCTION(profiler::colors::Red);
-  DataType d = (ak_matrix(0, 0) - ak_matrix(1, 1)) / 2.0;
+  DataType d = (ak_matrix(0, 0) - ak_matrix(1, 1)) / static_cast<DataType>(2.0);
   if (d >= 0) {
     return ak_matrix(1, 1) + d - std::hypot(d, ak_matrix(1, 0));
   } else {
@@ -151,11 +189,12 @@ WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
   }
 }
 
+// TODO(Georg): Check this is only meant to be called for real Eigenvalues?
 template <class DataType, bool is_symmetric, class Derived>
 inline std::enable_if_t<!is_symmetric && std::is_arithmetic<DataType>::value, DataType>
 WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
   EASY_FUNCTION(profiler::colors::Red);
-  DataType d = (ak_matrix(0, 0) - ak_matrix(1, 1)) / 2.0;
+  DataType d = (ak_matrix(0, 0) - ak_matrix(1, 1)) / static_cast<DataType>(2.0);
   // TODO (Georg): Find a way to compute this which avoids over and underflow
   if (d >= 0) {
     return ak_matrix(1, 1) + d - std::sqrt(d * d + ak_matrix(1, 0) * ak_matrix(0, 1));
@@ -170,9 +209,9 @@ WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
   EASY_FUNCTION(profiler::colors::Red);
   DataType trace = ak_matrix.trace();
   // TODO (Georg): Find a way to compute this which avoids over and underflow
-  DataType tmp = std::sqrt(trace * trace - 4.0 * ak_matrix.determinant());
-  DataType ev1 = (trace + tmp) / 2.0;
-  DataType ev2 = (trace - tmp) / 2.0;
+  DataType tmp = std::sqrt(trace * trace - static_cast<DataType>(4.0) * ak_matrix.determinant());
+  DataType ev1 = (trace + tmp) / static_cast<DataType>(2.0);
+  DataType ev2 = (trace - tmp) / static_cast<DataType>(2.0);
 
   DataType entry;
   entry = ak_matrix(1, 1);
