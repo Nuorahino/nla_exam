@@ -2,7 +2,6 @@
 #define QR_HH_
 
 /*
- * TODO (20.12): removed the check for arithmetic in IsComplex, may need to be added elsewhere, for datatypes which are not a specialization of std::complex "IsComplex" always evaluates to false
  * TODO: optimize for eigen (noalias)
  * TODO: use threads
  */
@@ -42,7 +41,8 @@ GetHouseholderVector(const Eigen::MatrixBase<Derived> &ak_x) {
     T s = std::sqrt(std::abs(w(0)) * std::abs(w(0)) + t);
     if constexpr (IsComplex<typename Derived::Scalar>()) {
       s *= w(0) / std::abs(w(0));  // Choise to avoid loss of significance
-      //s *= std::polar(1.0, std::arg(w(0)));  // Does not work for float and double at the same time
+      // s *= std::polar(1.0, std::arg(w(0)));  // Does not work for float and double at
+      // the same time
     } else {
       if (w(0) < 0) s *= -1;
     }
@@ -51,6 +51,8 @@ GetHouseholderVector(const Eigen::MatrixBase<Derived> &ak_x) {
   return w;
 }
 
+
+// TODO(Georg): Decide on if to include beta or not
 /* Apply a Householder Reflection from the right
  * Parameter:
  * - ak_w: Householder Vector
@@ -74,6 +76,7 @@ ApplyHouseholderRight(const Eigen::MatrixBase<Derived2> &ak_w,
   return;
 }
 
+
 template <class Derived, class Derived2>
 void
 ApplyHouseholderRight(const Eigen::MatrixBase<Derived2> &ak_w,
@@ -84,13 +87,14 @@ ApplyHouseholderRight(const Eigen::MatrixBase<Derived2> &ak_w,
   typedef Eigen::MatrixBase<Derived> MatrixType;
   MatrixType &matrix = const_cast<MatrixType &>(a_matrix);  // Const cast needed for eigen
 
-  //T beta = 2 / ak_w.squaredNorm();
+  // T beta = 2 / ak_w.squaredNorm();
   for (int i = 0; i < a_matrix.rows(); ++i) {
     T tmp = beta * a_matrix(i, Eigen::all) * ak_w;
     matrix(i, Eigen::all) -= tmp * ak_w.adjoint();
   }
   return;
 }
+
 
 /* Apply a Householder Reflection from the left
  * Parameter:
@@ -115,7 +119,7 @@ ApplyHouseholderLeft(const Eigen::MatrixBase<Derived2> &ak_w,
   return;
 }
 
-// TODO(Georg): Decide on if to include beta or not
+
 template <class Derived, class Derived2>
 void
 ApplyHouseholderLeft(const Eigen::MatrixBase<Derived2> &ak_w,
@@ -126,13 +130,14 @@ ApplyHouseholderLeft(const Eigen::MatrixBase<Derived2> &ak_w,
   typedef Eigen::MatrixBase<Derived> MatrixType;
   MatrixType &matrix = const_cast<MatrixType &>(a_matrix);  // Const cast needed for eigen
 
-  //T beta = 2 / ak_w.squaredNorm();
+  // T beta = 2 / ak_w.squaredNorm();
   for (int i = 0; i < a_matrix.cols(); ++i) {
     T tmp = beta * ak_w.dot(a_matrix(Eigen::all, i));  // w.dot(A) = w.adjoint() * A
     matrix(Eigen::all, i) -= tmp * ak_w;
   }
   return;
 }
+
 
 /* Transforms a Matrix to Hessenberg form
  * Parameter:
@@ -172,6 +177,7 @@ HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
   return;
 }
 
+
 /* Get Wilkinson shift parameter for a given 2x2 Matrix
  * Parameter:
  * - ak_matrix: 2x2 Matrix of which to calculate the shift parameter
@@ -189,6 +195,7 @@ WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
   }
 }
 
+
 // TODO(Georg): Check this is only meant to be called for real Eigenvalues?
 template <class DataType, bool is_symmetric, class Derived>
 inline std::enable_if_t<!is_symmetric && std::is_arithmetic<DataType>::value, DataType>
@@ -203,13 +210,15 @@ WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
   }
 }
 
+
 template <class DataType, bool is_symmetric, class Derived>
 std::enable_if_t<IsComplex<DataType>(), DataType>
 WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
   EASY_FUNCTION(profiler::colors::Red);
   DataType trace = ak_matrix.trace();
   // TODO (Georg): Find a way to compute this which avoids over and underflow
-  DataType tmp = std::sqrt(trace * trace - static_cast<DataType>(4.0) * ak_matrix.determinant());
+  DataType tmp =
+      std::sqrt(trace * trace - static_cast<DataType>(4.0) * ak_matrix.determinant());
   DataType ev1 = (trace + tmp) / static_cast<DataType>(2.0);
   DataType ev2 = (trace - tmp) / static_cast<DataType>(2.0);
 
@@ -221,6 +230,7 @@ WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
     return ev2;
   }
 }
+
 
 /* Apply a Givens Rotation from the left
  * Parameter:
@@ -243,6 +253,7 @@ ApplyGivensLeft(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c,
   return;
 }
 
+
 /* Apply a Givens Rotation from the right
  * Parameter:
  * - a_matrix: Matrix (slice) to transform
@@ -263,6 +274,7 @@ ApplyGivensRight(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c
   }
   return;
 }
+
 
 /* Apply a Givens Rotation from the left
  * Parameter:
@@ -285,6 +297,7 @@ ApplyGivensLeft(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c,
   return;
 }
 
+
 /* Apply a Givens Rotation from the right
  * Parameter:
  * - a_matrix: Matrix (slice) to transform
@@ -306,6 +319,7 @@ ApplyGivensRight(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c
   return;
 }
 
+
 /* Calculate the entries of a Givens Matrix
  * Parameter:
  * - ak_a: first entry
@@ -323,12 +337,16 @@ GetGivensEntries(const DataType &ak_a, const DataType &ak_b) {
   } else {
     DataType r = std::hypot(ak_a, ak_b);
     res.at(0) = std::abs(ak_a) / r;
-    res.at(1) = ak_b / r * DataType{std::copysign(DataType{1}, ak_a)}; // TODO: instead of copysign maybe use a test with >
-                                                                       // 0 to do this, as this always converts to float
+    res.at(1) =
+        ak_b / r *
+        DataType{std::copysign(
+            DataType{1}, ak_a)};  // TODO: instead of copysign maybe use a test with >
+                                  // 0 to do this, as this always converts to float
   }
   res.at(2) = res.at(1);
   return res;
 }
+
 
 /* Calculate the entries of a Givens Matrix
  * Parameter:
@@ -357,6 +375,7 @@ GetGivensEntries(const DataType &ak_a, const DataType &ak_b) {
   return res;
 }
 
+
 template <class DataType>
 typename std::enable_if_t<std::is_arithmetic<DataType>::value, DataType>
 ExceptionalSingleShift() {
@@ -374,6 +393,7 @@ ExceptionalSingleShift() {
   std::uniform_real_distribution<typename DataType::value_type> dist(-100, 100);
   return {dist(rng), dist(rng)};
 }
+
 
 /* Executes one step of the implicit qr algorithm for a tridiagonal Matrix
  * Parameter:
@@ -464,6 +484,7 @@ ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
   return;
 }
 
+
 /* Get double shift parameters for a given 2x2 Matrix
  * Parameter:
  * - ak_matrix: 2x2 Matrix of which to calculate the shift parameter
@@ -498,6 +519,7 @@ DoubleShiftParameter(const Eigen::MatrixBase<Derived> &ak_matrix) {
 #endif
   return res;
 }
+
 
 /* Executes one step of the double shift algorithm
  * Parameter:
@@ -549,6 +571,7 @@ DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
   ApplyHouseholderLeft(w, matrix(Eigen::lastN(2), Eigen::lastN(3)));
 }
 
+
 /* Deflates a Matrix converging to a diagonal matrix
  * Parameter:
  * - a_matrix: Matrix to deflate
@@ -581,6 +604,7 @@ DeflateDiagonal(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin, int &a
   }
   return state;
 }
+
 
 /* Deflates a Matrix converging to a Schur Matrix
  * Parameter:
@@ -618,6 +642,7 @@ DeflateSchur(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin, int &a_en
   }
   return state;
 }
+
 
 /* Calculates the eigenvalues of a Matrix in Schur Form
  * Parameter:
@@ -662,6 +687,7 @@ CalcEigenvaluesFromSchur(const Eigen::MatrixBase<Derived> &ak_matrix,
   }
   return res;
 }
+
 
 /* Get the eigenvalues of a hessenberg Matrix using the qr iteration
  * Parameter:
@@ -728,6 +754,7 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
   }
   return CalcEigenvaluesFromSchur<DataType>(a_matrix, tridiagonal_result);
 }
+
 
 /* Calculate the eigenvalues of a Matrix using the QR decomposition
  * Parameter:

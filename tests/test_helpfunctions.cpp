@@ -18,6 +18,7 @@ operator<(const Test_class &lhs, const Test_class &rhs) {
   return true;
 }
 
+
 // TODO (Georg): Is it correct, that no number types like "char" pass this check
 // successfully?
 TEMPLATE_TEST_CASE("Complex data types are correctly identified as complex",
@@ -27,11 +28,13 @@ TEMPLATE_TEST_CASE("Complex data types are correctly identified as complex",
   STATIC_CHECK(IsComplex<TestType>());
 }
 
+
 TEMPLATE_TEST_CASE("Non Complex data types are correctly identified as not complex",
                    "[is_complex]", int, double, unsigned int, char, std::string, bool,
                    Test_class) {
   STATIC_CHECK(!IsComplex<TestType>());
 }
+
 
 TEMPLATE_TEST_CASE("Complex data types are their own EvType", "[EvType]",
                    std::complex<int>, std::complex<double>, std::complex<unsigned int>,
@@ -41,6 +44,7 @@ TEMPLATE_TEST_CASE("Complex data types are their own EvType", "[EvType]",
                    typename EvType<IsComplex<TestType>(), TestType>::type>::value);
 }
 
+
 TEMPLATE_TEST_CASE(
     "Non Complex data types get the complex specialization as their EvType", "[EvType]",
     int, double, unsigned int, char, bool) {
@@ -49,6 +53,7 @@ TEMPLATE_TEST_CASE(
                    typename EvType<IsComplex<TestType>(), TestType>::type>::value);
 }
 
+
 TEMPLATE_TEST_CASE("Complex data types get correct DoubleType", "[DoubleType]",
                    std::complex<int>, std::complex<double>, std::complex<unsigned int>,
                    std::complex<char>, std::complex<bool>) {
@@ -56,11 +61,13 @@ TEMPLATE_TEST_CASE("Complex data types get correct DoubleType", "[DoubleType]",
                             typename DoubleType<IsComplex<TestType>()>::type>::value);
 }
 
+
 TEMPLATE_TEST_CASE("Non Complex data types get correct double type", "[DoubleType]", int,
                    double, unsigned int, char, bool) {
   STATIC_CHECK(
       std::is_same<double, typename DoubleType<IsComplex<TestType>()>::type>::value);
 }
+
 
 TEMPLATE_TEST_CASE("Correctly Identify Hermitian Matrices", "[IsHermitian]",
                    Eigen::MatrixXd, Eigen::MatrixXi, Eigen::MatrixXcd) {
@@ -70,12 +77,14 @@ TEMPLATE_TEST_CASE("Correctly Identify Hermitian Matrices", "[IsHermitian]",
   CHECK(IsHermitian(Mat));
 }
 
+
 TEMPLATE_TEST_CASE("Correctly Identify Non Hermitian Matrices", "[IsHermitian]",
                    Eigen::MatrixXd, Eigen::MatrixXi, Eigen::MatrixXcd) {
   int n = GENERATE(10, 15);
   TestType Mat = TestType::Random(n, n);
   CHECK(!IsHermitian(Mat));
 }
+
 
 TEMPLATE_TEST_CASE("Correctly Identify Non Square Matrices as not Hermitian",
                    "[IsHermitian]", Eigen::MatrixXd, Eigen::MatrixXi, Eigen::MatrixXcd) {
@@ -98,6 +107,7 @@ TEMPLATE_TEST_CASE("Correctly Identify Datatypes without a '<' function",
   CHECK(!HasLesser<TestType>::check());
 }
 
+
 TEMPLATE_TEST_CASE("Lesser EV works for arithmetic data types", "[LesserEv]", int, double,
                    char, bool, unsigned int) {
   TestType a = 0;
@@ -114,13 +124,11 @@ TEMPLATE_TEST_CASE("Lesser EV works for arithmetic data types", "[LesserEv]", in
   }
 }
 
-// TODO (Georg): Unsigned int not working, is that correct?
-// Maybe rewrite the LesserEv function to not use abs
+
 TEMPLATE_TEST_CASE(
     "Lesser EV works for complex data types", "[LesserEv]",
-//     std::complex<int>, std::complex<double>, std::complex<unsigned int>) {
+    //     std::complex<int>, std::complex<double>, std::complex<unsigned int>) {
     std::complex<int>, std::complex<double>) {
-  // TODO (Georg): Can this be wrapped in a scenario?
   TestType a1(3, 2);
   TestType b1(3, 4);
   REQUIRE(LesserEv(a1, b1) == true);
@@ -140,21 +148,6 @@ TEMPLATE_TEST_CASE(
   REQUIRE(LesserEv(a5, b5) == false);
 }
 
-// TODO (Georg): Insert a test case for save and open data functions
-TEMPLATE_TEST_CASE("Save and Read Matrices from a file", "[save/open data]",
-                   //Eigen::MatrixXd, Eigen::MatrixXi, Eigen::MatrixXcd) {
-                   Eigen::MatrixXd) {
-  std::cout << "Got the Directory: " << BINARY_DIR << std::endl;
-  //TestType Mat = Eigen::MatrixXi::Random(20, 20).cast<double>();
-  TestType Mat = Eigen::MatrixXi::Random(2, 2).cast<double>();
-  std::string filename = std::string(BINARY_DIR) + std::string("/testMatrix");
-  saveData(filename, Mat);
-  TestType Res = openData<TestType>(filename);
-  // TODO (Georg): Matrix comes out as transposed
-  std::cout << "Input Matrix: " << Mat << std::endl;
-  std::cout << "Result Matrix: " << Res << std::endl;
-  REQUIRE((Mat - Res).norm() < 1e-10);
-}
 
 TEST_CASE("Printing of Vectors works correctly", "[print std::vector]") {
   SECTION("Printing double Vector") {
@@ -177,11 +170,12 @@ TEST_CASE("Printing of Vectors works correctly", "[print std::vector]") {
   }
 }
 
-// TODO (GEORG): Template this
-TEST_CASE("Converting Eigen Vectors to std::vector", "[Convert to Vector]") {
+
+TEMPLATE_TEST_CASE("Converting Eigen Vectors to std::vector", "[Convert to Vector]", int,
+                   float, double) {
   SECTION("Converting double vectors") {
-    Eigen::Vector3d Vec{3, -5, 8};
-    std::vector<double> res = {3, -5, 8};
+    Eigen::Vector<TestType, 3> Vec{3, -5, 8};
+    std::vector<TestType> res = {3, -5, 8};
     REQUIRE(res == ConvertToVec(Vec));
   }
 }

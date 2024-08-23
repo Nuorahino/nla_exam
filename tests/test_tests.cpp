@@ -14,6 +14,7 @@ TEMPLATE_TEST_CASE("Min Matching test", "[test]", float, double) {
   }
 }
 
+
 TEMPLATE_TEST_CASE("Min Matching test", "[test]", std::complex<float>,
                    std::complex<double>) {
   int n = GENERATE(take(5, random<int>(3, 20)));

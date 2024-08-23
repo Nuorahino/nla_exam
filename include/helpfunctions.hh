@@ -118,47 +118,6 @@ LesserEv(const std::complex<T>& ak_c1, const std::complex<T>& ak_c2,
   }
 }
 
-// Write an Eigen Matrix to and From CSV
-template <typename Derived>
-inline void
-saveData(const std::string& ak_filename, const Eigen::MatrixBase<Derived>& ak_mat) {
-  const static Eigen::IOFormat CSVFormat(Eigen::FullPrecision, Eigen::DontAlignCols, ", ",
-                                         "\n");
-  std::ofstream file(ak_filename);
-  if (file.is_open()) {
-    file << ak_mat.format(CSVFormat);
-    file.close();
-  }
-}
-
-template <typename MatrixType>
-MatrixType
-openData(const std::string& ak_file_to_open) {
-  std::vector<double> entries;
-  std::ifstream DataFile(ak_file_to_open);
-  std::string row_string;
-  std::string entry;
-  int number_of_rows = 0;
-
-  while (std::getline(DataFile, row_string)) {
-    std::stringstream matrixRowStringStream(row_string);       // convert to stringstream
-    while (std::getline(matrixRowStringStream, entry, ',')) {  // Split the entries
-      entries.push_back(stod(entry));
-    }
-    ++number_of_rows;
-  }
-  if constexpr (MatrixType::IsRowMajor) {
-    std::cout << "First Case" << std::endl;
-    return Eigen::Map<MatrixType, 0, Eigen::InnerStride<>>(
-        //entries.data(), number_of_rows, number_of_rows, entries.size() / number_of_rows);
-        entries.data(), number_of_rows, number_of_rows, 1);
-  } else {
-    std::cout << "Second Case" << std::endl;
-    return Eigen::Map<MatrixType, 0, Eigen::OuterStride<>>(
-        //entries.data(), number_of_rows, number_of_rows, Eigen::OuterStride<>(entries.size() / number_of_rows));
-        entries.data(), number_of_rows, number_of_rows, 1);
-  }
-}
 
 template <class C>
 std::ostream&
@@ -173,6 +132,7 @@ operator<<(std::ostream& a_out, const std::vector<C>& ak_v) {
   a_out << "}";
   return a_out;
 }
+
 
 template <typename Derived>
 std::vector<typename Derived::value_type>

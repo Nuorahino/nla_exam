@@ -4,7 +4,8 @@ BasedOnStyle:  Google
 
 IncludeBlocks:  Preserve
 ColumnLimit:     90
-SeparateDefinitionBlocks: Always
+#SeparateDefinitionBlocks: Always
+MaxEmptyLinesToKeep: 2
 EmptyLineBeforeAccessModifier: Always
 AlwaysBreakAfterReturnType: TopLevelDefinitions
 #DisableFormat: true
