@@ -365,17 +365,12 @@ TEMPLATE_TEST_CASE(
 TEMPLATE_TEST_CASE("Double Shift is correct", "[DoubleShift]", float, double) {
   int n = 2;
   Eigen::Matrix<TestType, -1, -1> A = Eigen::Matrix<TestType, -1, -1>::Random(n, n);
-  A = A + A.transpose().eval();
   Eigen::Matrix<TestType, -1, -1> eigenvector;
   Eigen::Vector<typename ComplexDataType<TestType>::type, -1> eigenvalues(n);
   std::tie(eigenvector, eigenvalues) = CalculateGeneralEigenvalues<TestType>(A, false);
   std::vector<TestType> shift = nla_exam::DoubleShiftParameter(A);
-//  if (std::abs(eigenvalues(0).imag()) < 1e-12) {
-//    REQUIRE(shift.size() == 0);
-//  } else {
-    REQUIRE_THAT(std::abs(shift.at(0) + (eigenvalues(0) + eigenvalues(1))), Catch::Matchers::WithinAbs(0.0, tol<TestType>()));
-    REQUIRE_THAT(std::abs(shift.at(1) - (eigenvalues(0) * eigenvalues(1))), Catch::Matchers::WithinAbs(0.0, tol<TestType>()));
-//  }
+  REQUIRE_THAT(std::abs(shift.at(0) + (eigenvalues(0) + eigenvalues(1))), Catch::Matchers::WithinAbs(0.0, tol<TestType>()));
+  REQUIRE_THAT(std::abs(shift.at(1) - (eigenvalues(0) * eigenvalues(1))), Catch::Matchers::WithinAbs(0.0, tol<TestType>()));
 }
 
 

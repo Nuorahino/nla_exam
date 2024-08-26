@@ -3,6 +3,7 @@
 
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
+#include <easy/profiler.h>
 
 #include "qr.hh"
 #include "test.hh"
@@ -11,15 +12,11 @@
 
 // Maybe use std::optional instead
 int main(int argc, char** argv) {
+  EASY_PROFILER_ENABLE;
   std::cout << "Project Version: " << "Solution needed" << std::endl;
-  Eigen::MatrixXd testMat{{2,3,4},{5,7,6},{8,9,10}};
-  std::cout << testMat << std::endl;
-  std::vector<double> x = nla_exam::GetGivensEntries<double>(2.0, 3.3);
-  std::cout << x.at(0) << ", " << x.at(1) << std::endl;
-
 
   std::string filename = GetFileName();
-  std::string basedir = "/home/georg/uni/11_sem23_24/ba/src/";
+  std::string basedir = "/home/georg/uni/12_sem24/ba2/";
 
   std::ofstream summary_file(basedir + "testresults/summary/" + filename);
   std::ofstream eigenvalue_file(basedir + "testresults/eigenvalues/" + filename);
@@ -36,12 +33,24 @@ int main(int argc, char** argv) {
   }
   //run_small_tests();
 
-  std::cout << "start: " << start << std::endl;
-  std::cout << "max_size: " << max_size << std::endl;
-  for( int i = start; i <= max_size; ++i ) {
-    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, false, 1e-12);
-    // This fails for i = 250
-    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, false, 1e-6);
+
+  std::vector<int> testsizes;
+  testsizes = {10, 50, 100, 1000};
+  profiler::startListen();
+
+  std::cout << "Testing for: " << testsizes << std::endl;
+  //for( int i = start; i <= max_size; ++i ) {
+  for (int i : testsizes) {
+  profiler::startListen();
+    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-12);
+  profiler::dumpBlocksToFile("test_profile1.prof");
+    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-6);
+  profiler::dumpBlocksToFile("test_profile2.prof");
+//  profiler::startListen();
+//    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, false, 1e-12);
+//  profiler::dumpBlocksToFile("test_profile1.prof");
+//    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, false, 1e-6);
+//  profiler::dumpBlocksToFile("test_profile2.prof");
 #ifdef HALF
     RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-12);
     RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, true, 1e-12);
@@ -54,6 +63,6 @@ int main(int argc, char** argv) {
     RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, false, 1e-6);
 #endif
   }
-
+  profiler::dumpBlocksToFile("test_profile.prof");
   return 1;
 }

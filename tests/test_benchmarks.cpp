@@ -38,7 +38,8 @@
 
 
 TEMPLATE_TEST_CASE("Symmetric Hessenberg Transformation", "[GivensRotation][BENCHMARK]", float, double, std::complex<float>, std::complex<double>) {
-  int n = GENERATE(take(5, random<int>(10, 100)));
+  //int n = GENERATE(take(5, random<int>(10, 100)));
+  int n = GENERATE(10, 50, 100);
   Eigen::Matrix<TestType, -1, -1> A = Eigen::Matrix<TestType, -1, -1>::Random(n, n);
   A = A + A.transpose().eval();
   BENCHMARK("Symmetric Hessenberg Transformation of size " + std::to_string(n)) {
@@ -48,9 +49,9 @@ TEMPLATE_TEST_CASE("Symmetric Hessenberg Transformation", "[GivensRotation][BENC
 
 
 TEMPLATE_TEST_CASE("Non Symmetric Hessenberg Transformation", "[GivensRotation][BENCHMARK]", float, double, std::complex<float>, std::complex<double>) {
-  int n = GENERATE(take(5, random<int>(10, 100)));
+  //int n = GENERATE(take(5, random<int>(10, 100)));
+  int n = GENERATE(10, 50, 100);
   Eigen::Matrix<TestType, -1, -1> A = Eigen::Matrix<TestType, -1, -1>::Random(n, n);
-  A = A + A.transpose().eval();
   BENCHMARK("Non Symmetric Hessenberg Transformation of size " + std::to_string(n)) {
     nla_exam::HessenbergTransformation(A);
   };
@@ -61,7 +62,8 @@ TEMPLATE_TEST_CASE(
     "Implicit QR Step with exceptional shift Benchmark",
     "[ImplicitQRStep][BENCHMARK]", float, double, std::complex<float>,
     std::complex<double>) {
-  int n = GENERATE(take(5, random<int>(10, 100)));
+  //int n = GENERATE(take(5, random<int>(10, 100)));
+  int n = GENERATE(10, 50, 100);
   Eigen::Matrix<TestType, -1, -1> A = Eigen::Matrix<TestType, -1, -1>::Random(n, n);
   nla_exam::HessenbergTransformation(A);
 
@@ -74,7 +76,8 @@ TEMPLATE_TEST_CASE(
 TEMPLATE_TEST_CASE(
     "Symmetric Implicit QR step Benchmark",
     "[ImplicitQRStep][BENCHMARK]", float, double) {
-  int n = GENERATE(take(5, random<int>(10, 100)));
+  //int n = GENERATE(take(5, random<int>(10, 100)));
+  int n = GENERATE(10, 50, 100);
   Eigen::Matrix<TestType, -1, -1> A = Eigen::Matrix<TestType, -1, -1>::Random(n, n);
   A = A + A.adjoint().eval();
   nla_exam::HessenbergTransformation(A);
@@ -88,7 +91,8 @@ TEMPLATE_TEST_CASE(
 
 TEMPLATE_TEST_CASE("Double Shift QR Benchmark",
                    "[DoubleShiftQRStep][BENCHMARK]", float, double) {
-  int n = GENERATE(take(5, random<int>(10, 100)));
+  //int n = GENERATE(take(5, random<int>(10, 100)));
+  int n = GENERATE(10, 50, 100);
   Eigen::Matrix<TestType, -1, -1> A = Eigen::Matrix<TestType, -1, -1>::Random(n, n);
   nla_exam::HessenbergTransformation(A);
 
