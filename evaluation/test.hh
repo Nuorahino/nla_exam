@@ -4,7 +4,7 @@
 #ifdef EIGEN
 #define VERSION "EIGEN"
 #else
-#define VERSION "new_eigen_matrix"
+#define VERSION "eigen_elementwise"
 #endif
 
 #include <fstream>

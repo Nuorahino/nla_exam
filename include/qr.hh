@@ -467,41 +467,22 @@ ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
   }
   auto entries = GetGivensEntries<>(a_matrix(aBegin, aBegin) - shift,
                                     a_matrix(aBegin + 1, aBegin));  // Parameter for the initial step
-  if constexpr (is_symmetric) {  // TODO (Georg): maybe better solution if matrix has
-                                 // symmetric view
+  if constexpr (is_symmetric) {
     // innitial step
     switch (n) {
       case 2:
         ApplyGivensTransformation<true, true, DataType>(matrix, entries.at(0), entries.at(1), aBegin);
-//        ApplyGivensLeft<DataType>(matrix, entries.at(0), entries.at(1));
-//        ApplyGivensRight<DataType>(matrix, entries.at(0), entries.at(1));
         return;
       default:
         ApplyGivensTransformation<true, false, DataType>(matrix, entries.at(0), entries.at(1), aBegin);
-//        ApplyGivensLeft<DataType>(matrix(Eigen::seqN(0, 2), Eigen::seqN(0, 3)),
-//                                  entries.at(0), entries.at(1));
-//        ApplyGivensRight<DataType>(matrix(Eigen::seqN(0, 3), Eigen::seqN(0, 2)),
-//                                   entries.at(0), entries.at(1));
     }
     // buldge chasing
     for (int k = aBegin + 1; k < aEnd - 1; ++k) {
       entries = GetGivensEntries<>(a_matrix(k, k - 1), a_matrix(k + 1, k - 1));
       ApplyGivensTransformation<false, false, DataType>(matrix, entries.at(0), entries.at(1), k);
-//      ApplyGivensLeft<DataType>(matrix(Eigen::seqN(k, 2), Eigen::seq(k - 1, n - 1)),
-//                                entries.at(0), entries.at(1));
-//      ApplyGivensRight<DataType>(matrix(Eigen::seq(0, k + 2), Eigen::seqN(k, 2)),
-//                                 entries.at(0), entries.at(1));
-//      matrix(k - 1, k + 1) = 0;
-//      matrix(k + 1, k - 1) = 0;
     }
     entries = GetGivensEntries<>(a_matrix(aEnd - 1, aEnd - 2), a_matrix(aEnd, aEnd - 2));
     ApplyGivensTransformation<false, true, DataType>(matrix, entries.at(0), entries.at(1), aEnd - 1);
-//    ApplyGivensLeft<DataType>(matrix(Eigen::seqN(n - 2, 2), Eigen::lastN(3)),
-//                              entries.at(0), entries.at(1));
-//    ApplyGivensRight<DataType>(matrix(Eigen::all, Eigen::seqN(n - 2, 2)), entries.at(0),
-//                               entries.at(1));
-//    matrix(n - 3, n - 1) = 0;
-//    matrix(n - 1, n - 3) = 0;
   }
 
   return;
@@ -770,7 +751,6 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
         steps_since_deflation = 1;
       }
       EASY_BLOCK("1 Step of the QR Iteration", profiler::colors::Yellow);
-      //step(const_cast<MatrixType &>(a_matrix), exceptional_shift, begin, end);
       step(a_matrix, exceptional_shift, begin, end);
       EASY_END_BLOCK;
     }
@@ -806,92 +786,6 @@ QrMethod(const Eigen::MatrixBase<Derived> &ak_matrix, const double ak_tol = 1e-1
  * - a_matrix: Tridiagonal Matrix
  * Return: void
  */
-//typename std::enable_if_t<std::is_same<DataType, double>::value, double>
-//template <class DataType, bool is_symmetric, typename Derived>
-//DataType
-//ImplicitQrStepWithQ(const Eigen::MatrixBase<Derived> &a_matrix,
-//                    const DataType shift,
-//                    const Eigen::MatrixBase<Derived> &a_V,
-//                    const int j) {
-//  Eigen::MatrixBase<Derived> &matrix = const_cast<Eigen::MatrixBase<Derived> &>(a_matrix);
-//  Eigen::MatrixBase<Derived> &V = const_cast<Eigen::MatrixBase<Derived> &>(a_V);
-//  int n = a_matrix.rows();
-//  assert( n > 2);
-//  std::vector<std::array<DataType, 2>> entry_values(n-1);
-//  entry_values.at(0) = GetGivensEntries<DataType>(a_matrix(0, 0) - shift, a_matrix(1, 0));
-//
-//  DataType c = entry_values.at(0)[0];
-//  DataType s = entry_values.at(0)[1];
-//  DataType e = s * matrix(2, 1);
-//  DataType x1 = c * c * matrix(0, 0) + s * s * matrix(1,1) + 2 * c * s * matrix(0, 1);
-//  DataType a2 = c * -s * matrix(0,0) - s * s * matrix(0, 1) + c * c * matrix(0, 1) + s * c * matrix(1, 1);
-//  DataType a3 = c * matrix(1, 2);
-//  DataType x2 = c * c * matrix(1, 1) + s * s * matrix(0,0) - 2 * c * s * matrix(1, 0);
-//
-//  nla_exam::ApplyGivensRight<DataType>(V(Eigen::all, Eigen::seqN(0, 2)),
-//                                      entry_values.at(0)[0], entry_values.at(0)[1]);
-//
-//  matrix(1, 0) = a2;
-//  matrix(0, 1) = a2;
-//  matrix(1, 2) = a3;
-//  matrix(2, 1) = a3;
-//  matrix(0, 0) = x1;
-//  matrix(1, 1) = x2;
-//  matrix(0, 2) = e;
-//  matrix(2, 0) = e;
-//  // buldge chasing
-//  for (int k = 1; k < n - 2; ++k) {
-//    entry_values.at(k) = GetGivensEntries<DataType>(a_matrix(k, k - 1), a_matrix(k + 1, k - 1));
-//
-//    DataType c = entry_values.at(k)[0];
-//    DataType s = entry_values.at(k)[1];
-//    DataType a1 = c * matrix(k, k - 1) + s * a_matrix(k+1, k - 1);
-//    DataType e = s * matrix(k+2, k+1);
-//    DataType x1 = c * c * matrix(k, k) + s * s * matrix(k+1,k+1) + 2 * c * s * matrix(k, k+1);
-//    DataType a2 = c * -s * matrix(k,k) - s * s * matrix(k, k+1) + c * c * matrix(k, k+1) + s * c * matrix(k+1, k+1);
-//    DataType a3 = c * matrix(k+1, k+2);
-//    DataType x2 = c * c * matrix(k+1, k+1) + s * s * matrix(k,k) - 2 * c * s * matrix(k+1, k);
-//
-//    nla_exam::ApplyGivensRight<DataType>(V(Eigen::all, Eigen::seqN(k, 2)),
-//                                      entry_values.at(k)[0], entry_values.at(k)[1]);
-//    matrix(k-1, k) = a1;
-//    matrix(k, k-1) = a1;
-//    matrix(k+1, k) = a2;
-//    matrix(k, k+1) = a2;
-//    matrix(k+1, k+2) = a3;
-//    matrix(k+2, k+1) = a3;
-//    matrix(k, k) = x1;
-//    matrix(k+1, k+1) = x2;
-//    matrix(k, k+2) = e;
-//    matrix(k+2, k) = e;
-//
-//    matrix(k - 1, k + 1) = 0;
-//    matrix(k + 1, k - 1) = 0;
-//  }
-//  entry_values.at(n-2) = GetGivensEntries<DataType>(a_matrix(n - 2, n - 3), a_matrix(n - 1, n - 3));
-//
-//  c = entry_values.at(n-2)[0];
-//  s = entry_values.at(n-2)[1];
-//  DataType a1 = c * matrix(n-2, n - 3) + s * a_matrix(n-1,  n - 3);
-//  x1 = c * c * matrix(n-2, n-2) + s * s * matrix(n-1,n-1) + 2 * c * s * matrix(n-2, n-1);
-//  a2 = c * -s * matrix(n-2,n-2) - s * s * matrix(n-2, n-1) + c * c * matrix(n-2, n-1) + s * c * matrix(n-1, n-1);
-//  x2 = c * c * matrix(n-1, n-1) + s * s * matrix(n-2,n-2) - 2 * c * s * matrix(n-1, n-2);
-//
-//  nla_exam::ApplyGivensRight<DataType>(V(Eigen::all, Eigen::seqN(n - 2, 2)),
-//                                      entry_values.at(n-2)[0], entry_values.at(n-2)[1]);
-//
-//  matrix(n-3, n-2) = a1;
-//  matrix(n-2, n-3) = a1;
-//  matrix(n-1, n-2) = a2;
-//  matrix(n-2, n-1) = a2;
-//  matrix(n-2, n-2) = x1;
-//  matrix(n-1, n-1) = x2;
-//
-//  matrix(n - 3, n - 1) = 0;
-//  matrix(n - 1, n - 3) = 0;
-//
-//  return entry_values.at(j-2)[1];
-//}
 ////typename std::enable_if_t<std::is_same<DataType, double>::value, double>
 //template <class DataType, bool is_symmetric>
 //DataType
