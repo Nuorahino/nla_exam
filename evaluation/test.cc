@@ -65,11 +65,7 @@ std::string GetVariantString(const int ak_size, const bool ak_is_hermitian,
     const bool ak_is_complex, const int ak_seed, const double ak_tol,
     const std::chrono::duration<double>& ak_runtime) {
   std::stringstream res;
-  std::string version = "new";
-#ifdef EIGEN
-  version = "EIGEN";
-#endif
-  res << version << "," // Try to a import the Version from Cmake
+  res << VERSION << "," // Try to a import the Version from Cmake
       << ak_size << ","
       << ak_is_hermitian << ","
       << ak_is_complex << ","

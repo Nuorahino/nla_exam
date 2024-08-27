@@ -1,6 +1,12 @@
 #ifndef TEST_HH_
 #define TEST_HH_
 
+#ifdef EIGEN
+#define VERSION "EIGEN"
+#else
+#define VERSION "new_eigen_matrix"
+#endif
+
 #include <fstream>
 #include <vector>
 #include <complex>
