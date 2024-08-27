@@ -1,6 +1,12 @@
 #ifndef TEST_HH_
 #define TEST_HH_
 
+#ifdef EIGEN
+#define VERSION "EIGEN"
+#else
+#define VERSION "new_eigen_matrix"
+#endif
+
 #include <fstream>
 #include <vector>
 #include <complex>
@@ -12,8 +18,9 @@
 //#include "helpfunctions/helpfunctions.hh"
 #include "helpfunctions.hh"
 #include "qr.hh"
-#include "../lapack/lapack_interface_impl.hh"
 #include "createMatrix.hh"
+#include "../tests/helpfunctions_for_test.hh"
+#include "../lapack/lapack_interface_impl.hh"
 
 /*
  * Write the summary Header to the file
@@ -83,9 +90,19 @@ std::string GetVariantString(const int ak_size , const bool ak_is_hermitian,
  * - ak_estimate: vector of eigenvalue estimates
  * - ak_exact: vector of exact eigenvalues
  */
+template<class DT>
 std::vector<double> GetApproximationError(
-    const std::vector<std::complex<double>>& ak_estimate,
-    const std::vector<std::complex<double>>& ak_exact );
+    std::vector<DT>& ak_estimate,
+    const std::vector<DT>& ak_exact ) {
+  assert( ak_estimate.size() == ak_exact.size());
+  order_as_min_matching(ak_estimate, ak_exact);
+  std::vector<double> res;
+  res.reserve(ak_estimate.size());
+  for (unsigned i = 0; i < ak_estimate.size(); ++i) {
+    res.push_back(std::abs(ak_estimate.at(i) - ak_exact.at(i)));
+  }
+  return res;
+}
 
 /*
  * Run a test for an eigenvalue estimator
@@ -105,10 +122,6 @@ void RunTest(std::ofstream& a_summary_file, std::ofstream& a_eigenvalue_file,
   MatrixType M;
   std::vector<C> res;
   std::tie(M, res) = CreateRandom<MatrixType>(ak_size, ak_is_hermitian, ak_seed);
-
-//  if constexpr ( IsComplex<MatrixType::Scalar>() ) {
-//    std::tie(std::ignore, test) = CalculateGeneralEigenvalues(M, false);
-//  }
 
   nla_exam::HessenbergTransformation<>(M, ak_is_hermitian);
 
@@ -145,8 +158,10 @@ void RunTest(std::ofstream& a_summary_file, std::ofstream& a_eigenvalue_file,
 
   auto end = std::chrono::steady_clock::now();
   std::chrono::duration<double> runtime = (end - start);
+
   std::sort(estimate.begin(), estimate.end(), [](C& a, C& b) {
       return LesserEv(a, b);});
+
   std::string prefix = GetVariantString(ak_size, ak_is_hermitian,
       IsComplex<typename MatrixType::Scalar>(), ak_seed, ak_tol, runtime);
   std::vector<double> error = GetApproximationError(estimate, res);

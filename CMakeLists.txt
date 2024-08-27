@@ -10,43 +10,14 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 
 add_library(QR INTERFACE include/qr.hh)
-#target_compile_options(QR INTERFACE -O3 -msse -msse2)
+target_compile_options(QR INTERFACE -O3 -msse -msse2 -DIMPLICIT -DSINGLE)
 #target_compile_options(QR INTERFACE -Wall -Wextra -Wpedantic -Wfloat-equal -Wshadow -Wunreachable-code -Wdouble-promotion -Wmisleading-indentation)
 #target_compile_options(QR INTERFACE -Wall -Wextra)
 
-#find_package(easy_profiler REQUIRED)
-#
-#target_link_libraries(QR easy_profiler)
-
-find_package(Eigen3 3.3)
+find_package(Eigen3 3.3 REQUIRED)
+target_link_libraries(QR INTERFACE Eigen3::Eigen)
+find_package(easy_profiler REQUIRED)
+target_link_libraries(QR INTERFACE easy_profiler)
 
 add_subdirectory(evaluation)
-
 add_subdirectory(tests)
-
-
-#find_package(Catch2 3 REQUIRED)
-
-#add_executable(tests test.cpp)
-#target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
-#
-#add_executable(custom-main-tests test.cpp test-main.cpp)
-#target_link_libraries(custom-main-tests PRIVATE Catch2::Catch2)
-
-#target_compile_features(QR PUBLIC cxx_std_17)
-
-#add_executable(evaluate main.cc)
-#target_link_libraries(evaluate PUBLIC QR) # very unsure if this is correct
-
-#target_include_directories(evaluate PUBLIC ../helpfunctions)
-
-# Current state in the tutorial
-
-
-
-
-#DEBUG := -g -Wall -Wextra -Wfloat-equal -Wshadow -Wunreachable-code -fsanitize=address -fsanitize=undefined -fsanitize=pointer-compare -Wunused-but-set-variable -pedantic
-
-
-#target_compile_options(${PROJECT_NAME} PUBLIC -llapack -DVERSION=1)
-

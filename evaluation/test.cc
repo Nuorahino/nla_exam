@@ -65,7 +65,7 @@ std::string GetVariantString(const int ak_size, const bool ak_is_hermitian,
     const bool ak_is_complex, const int ak_seed, const double ak_tol,
     const std::chrono::duration<double>& ak_runtime) {
   std::stringstream res;
-  res << "VERSION Missing" << "," // Try to a import the Version from Cmake
+  res << VERSION << "," // Try to a import the Version from Cmake
       << ak_size << ","
       << ak_is_hermitian << ","
       << ak_is_complex << ","
@@ -77,19 +77,15 @@ std::string GetVariantString(const int ak_size, const bool ak_is_hermitian,
 }
 
 
-std::vector<double> GetApproximationError(
-    const std::vector<std::complex<double>>& ak_estimate,
-    const std::vector<std::complex<double>>& ak_exact) {
-  assert( ak_estimate.size() == ak_exact.size());
-  std::vector<double> res;
-  res.reserve(ak_estimate.size());
-  for (auto estimate : ak_estimate) {
-    double min = std::numeric_limits<double>::max();
-    for (auto exact : ak_exact) {
-      double dist = std::abs(estimate - exact);
-      if (dist < min) min = dist;
-    }
-    res.push_back(min);
-  }
-  return res;
-}
+//std::vector<double> GetApproximationError(
+//    std::vector<std::complex<double>>& ak_estimate,
+//    const std::vector<std::complex<double>>& ak_exact) {
+//  assert( ak_estimate.size() == ak_exact.size());
+//  order_as_min_matching(ak_estimate, ak_exact);
+//  std::vector<double> res;
+//  res.reserve(ak_estimate.size());
+//  for (unsigned i = 0; i < ak_estimate.size(); ++i) {
+//    res.push_back(std::abs(ak_estimate.at(i) - ak_exact.at(i)));
+//  }
+//  return res;
+//}
