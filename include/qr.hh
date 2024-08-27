@@ -185,13 +185,25 @@ HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
  */
 template <class DataType, bool is_symmetric, class Derived>
 inline std::enable_if_t<is_symmetric && std::is_arithmetic<DataType>::value, DataType>
-WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
+WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix, const int i) {
   EASY_FUNCTION(profiler::colors::Red);
-  DataType d = (ak_matrix(0, 0) - ak_matrix(1, 1)) / static_cast<DataType>(2.0);
+  DataType d = (ak_matrix(i, i) - ak_matrix(i + 1, i + 1)) / static_cast<DataType>(2.0);
   if (d >= 0) {
-    return ak_matrix(1, 1) + d - std::hypot(d, ak_matrix(1, 0));
+    return ak_matrix(i + 1, i + 1) + d - std::hypot(d, ak_matrix(i + 1, i));
   } else {
-    return ak_matrix(1, 1) + d + std::hypot(d, ak_matrix(1, 0));
+    return ak_matrix(i + 1, i + 1) + d + std::hypot(d, ak_matrix(i + 1, i));
+  }
+}
+
+template <class DataType, bool is_symmetric, class Derived>
+inline std::enable_if_t<!is_symmetric && std::is_arithmetic<DataType>::value, DataType>
+WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix, const int i) {
+  EASY_FUNCTION(profiler::colors::Red);
+  DataType d = (ak_matrix(i, i) - ak_matrix(i + 1, i + 1)) / static_cast<DataType>(2.0);
+  if (d >= 0) {
+    return ak_matrix(i + 1, i + 1) + d - std::hypot(d, ak_matrix(i + 1, i));
+  } else {
+    return ak_matrix(i + 1, i + 1) + d + std::hypot(d, ak_matrix(i + 1, i));
   }
 }
 
@@ -242,10 +254,10 @@ WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
 template <class DataType, class Derived>
 std::enable_if_t<std::is_arithmetic<DataType>::value, void>
 ApplyGivensLeft(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c,
-                const DataType ak_s) {
+                const DataType ak_s, const int aBegin, const int aEnd) {
   EASY_FUNCTION(profiler::colors::Red);
   Eigen::MatrixBase<Derived> &matrix = const_cast<Eigen::MatrixBase<Derived> &>(a_matrix);
-  for (int64_t i = 0; i < a_matrix.cols(); ++i) {
+  for (int64_t i = aBegin; i <= aEnd; ++i) {
     typename Derived::Scalar tmp = matrix(0, i);
     matrix(0, i) = ak_c * tmp + ak_s * matrix(1, i);
     matrix(1, i) = -ak_s * tmp + ak_c * matrix(1, i);
@@ -395,6 +407,42 @@ ExceptionalSingleShift() {
 }
 
 
+template <bool first, bool last, class DataType, class Derived>
+std::enable_if_t<std::is_arithmetic<DataType>::value, void>
+ApplyGivensTransformation(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c,
+                const DataType ak_s, const int aBegin) {
+    Eigen::MatrixBase<Derived> &matrix = const_cast<Eigen::MatrixBase<Derived> &>(a_matrix);
+    int k = aBegin;
+    DataType c = ak_c;
+    DataType s = ak_s;
+    DataType x1 = c * c * matrix(k, k) + s * s * matrix(k+1,k+1) + 2 * c * s * matrix(k, k+1);
+    DataType a2 = c * -s * matrix(k,k) - s * s * matrix(k, k+1) + c * c * matrix(k, k+1) + s * c * matrix(k+1, k+1);
+    DataType x2 = c * c * matrix(k+1, k+1) + s * s * matrix(k,k) - 2 * c * s * matrix(k+1, k);
+
+if constexpr (!first) {
+    DataType a1 = c * matrix(k, k - 1) + s * a_matrix(k+1, k - 1);
+    matrix(k-1, k) = a1;
+    matrix(k, k-1) = a1;
+    matrix(k - 1, k + 1) = 0;
+    matrix(k + 1, k - 1) = 0;
+}
+
+if constexpr (!last) {
+    DataType e = s * matrix(k+2, k+1);
+    matrix(k, k+2) = e;
+    matrix(k+2, k) = e;
+    DataType a3 = c * matrix(k+1, k+2);
+    matrix(k+1, k+2) = a3;
+    matrix(k+2, k+1) = a3;
+}
+
+    matrix(k+1, k) = a2;
+    matrix(k, k+1) = a2;
+    matrix(k, k) = x1;
+    matrix(k+1, k+1) = x2;
+
+}
+
 /* Executes one step of the implicit qr algorithm for a tridiagonal Matrix
  * Parameter:
  * - a_matrix: Tridiagonal Matrix
@@ -403,84 +451,59 @@ ExceptionalSingleShift() {
 template <class DataType, bool is_symmetric, typename Derived>
 void
 ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
-               const bool ak_exceptional_shift) {
+               const bool ak_exceptional_shift,
+               const int aBegin, const int aEnd) {
   EASY_FUNCTION(profiler::colors::Red);
   Eigen::MatrixBase<Derived> &matrix = const_cast<Eigen::MatrixBase<Derived> &>(a_matrix);
-  int n = a_matrix.rows();
+  //int n = a_matrix.rows();
+  int n = aEnd - aBegin + 1;
   DataType shift;
   if (ak_exceptional_shift) {
     shift = ExceptionalSingleShift<DataType>();
   } else {
     shift = WilkinsonShift<DataType, is_symmetric>(
-        a_matrix(Eigen::lastN(2), Eigen::lastN(2)));
+        a_matrix, aEnd - 1);
+        //a_matrix, n - 2);
   }
-  auto entries = GetGivensEntries<>(a_matrix(0, 0) - shift,
-                                    a_matrix(1, 0));  // Parameter for the initial step
+  auto entries = GetGivensEntries<>(a_matrix(aBegin, aBegin) - shift,
+                                    a_matrix(aBegin + 1, aBegin));  // Parameter for the initial step
   if constexpr (is_symmetric) {  // TODO (Georg): maybe better solution if matrix has
                                  // symmetric view
     // innitial step
     switch (n) {
       case 2:
-        ApplyGivensLeft<DataType>(matrix, entries.at(0), entries.at(1));
-        ApplyGivensRight<DataType>(matrix, entries.at(0), entries.at(1));
+        ApplyGivensTransformation<true, true, DataType>(matrix, entries.at(0), entries.at(1), aBegin);
+//        ApplyGivensLeft<DataType>(matrix, entries.at(0), entries.at(1));
+//        ApplyGivensRight<DataType>(matrix, entries.at(0), entries.at(1));
         return;
       default:
-        ApplyGivensLeft<DataType>(matrix(Eigen::seqN(0, 2), Eigen::seqN(0, 3)),
-                                  entries.at(0), entries.at(1));
-        ApplyGivensRight<DataType>(matrix(Eigen::seqN(0, 3), Eigen::seqN(0, 2)),
-                                   entries.at(0), entries.at(1));
+        ApplyGivensTransformation<true, false, DataType>(matrix, entries.at(0), entries.at(1), aBegin);
+//        ApplyGivensLeft<DataType>(matrix(Eigen::seqN(0, 2), Eigen::seqN(0, 3)),
+//                                  entries.at(0), entries.at(1));
+//        ApplyGivensRight<DataType>(matrix(Eigen::seqN(0, 3), Eigen::seqN(0, 2)),
+//                                   entries.at(0), entries.at(1));
     }
     // buldge chasing
-    for (int k = 1; k < n - 2; ++k) {
+    for (int k = aBegin + 1; k < aEnd - 1; ++k) {
       entries = GetGivensEntries<>(a_matrix(k, k - 1), a_matrix(k + 1, k - 1));
-      ApplyGivensLeft<DataType>(matrix(Eigen::seqN(k, 2), Eigen::seq(k - 1, n - 1)),
-                                entries.at(0), entries.at(1));
-      ApplyGivensRight<DataType>(matrix(Eigen::seq(0, k + 2), Eigen::seqN(k, 2)),
-                                 entries.at(0), entries.at(1));
-      matrix(k - 1, k + 1) = 0;
-      matrix(k + 1, k - 1) = 0;
+      ApplyGivensTransformation<false, false, DataType>(matrix, entries.at(0), entries.at(1), k);
+//      ApplyGivensLeft<DataType>(matrix(Eigen::seqN(k, 2), Eigen::seq(k - 1, n - 1)),
+//                                entries.at(0), entries.at(1));
+//      ApplyGivensRight<DataType>(matrix(Eigen::seq(0, k + 2), Eigen::seqN(k, 2)),
+//                                 entries.at(0), entries.at(1));
+//      matrix(k - 1, k + 1) = 0;
+//      matrix(k + 1, k - 1) = 0;
     }
-    entries = GetGivensEntries<>(a_matrix(n - 2, n - 3), a_matrix(n - 1, n - 3));
-    ApplyGivensLeft<DataType>(matrix(Eigen::seqN(n - 2, 2), Eigen::lastN(3)),
-                              entries.at(0), entries.at(1));
-    ApplyGivensRight<DataType>(matrix(Eigen::all, Eigen::seqN(n - 2, 2)), entries.at(0),
-                               entries.at(1));
-    matrix(n - 3, n - 1) = 0;
-    matrix(n - 1, n - 3) = 0;
-
-  } else {
-    // inital step
-    switch (n) {
-      case 2:
-        ApplyGivensLeft<DataType>(matrix, entries.at(0), entries.at(1), entries.at(2));
-        ApplyGivensRight<DataType>(matrix, entries.at(0), entries.at(1), entries.at(2));
-        return;
-      default:
-        ApplyGivensLeft<DataType>(matrix(Eigen::seqN(0, 2), Eigen::all), entries.at(0),
-                                  entries.at(1), entries.at(2));
-        ApplyGivensRight<DataType>(matrix(Eigen::seqN(0, 3), Eigen::seqN(0, 2)),
-                                   entries.at(0), entries.at(1), entries.at(2));
-    }
-    // buldge chasing
-    for (int k = 1; k < n - 2; ++k) {
-      entries = GetGivensEntries<>(a_matrix(k, k - 1), a_matrix(k + 1, k - 1));
-      if (entries.size() == 2) {
-        entries.push_back(entries.at(1));  // needed for reel non symm matrix
-      }
-      ApplyGivensLeft<DataType>(matrix(Eigen::seqN(k, 2), Eigen::seq(k - 1, n - 1)),
-                                entries.at(0), entries.at(1), entries.at(2));
-      ApplyGivensRight<DataType>(matrix(Eigen::seq(0, k + 2), Eigen::seqN(k, 2)),
-                                 entries.at(0), entries.at(1), entries.at(2));
-      matrix(k + 1, k - 1) = 0.0;
-    }
-    entries = GetGivensEntries<>(a_matrix(n - 2, n - 3), a_matrix(n - 1, n - 3));
-    if (entries.size() == 2) entries.push_back(entries.at(1));  // for reel non sym matrix
-    ApplyGivensLeft<DataType>(matrix(Eigen::seqN(n - 2, 2), Eigen::lastN(3)),
-                              entries.at(0), entries.at(1), entries.at(2));
-    ApplyGivensRight<DataType>(matrix(Eigen::all, Eigen::seqN(n - 2, 2)), entries.at(0),
-                               entries.at(1), entries.at(2));
-    matrix(n - 1, n - 3) = 0.0;
+    entries = GetGivensEntries<>(a_matrix(aEnd - 1, aEnd - 2), a_matrix(aEnd, aEnd - 2));
+    ApplyGivensTransformation<false, true, DataType>(matrix, entries.at(0), entries.at(1), aEnd - 1);
+//    ApplyGivensLeft<DataType>(matrix(Eigen::seqN(n - 2, 2), Eigen::lastN(3)),
+//                              entries.at(0), entries.at(1));
+//    ApplyGivensRight<DataType>(matrix(Eigen::all, Eigen::seqN(n - 2, 2)), entries.at(0),
+//                               entries.at(1));
+//    matrix(n - 3, n - 1) = 0;
+//    matrix(n - 1, n - 3) = 0;
   }
+
   return;
 }
 
@@ -712,17 +735,19 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
   // specific definitions
   int end_of_while = 0;
   bool tridiagonal_result = true;
-  void (*step)(const Eigen::MatrixBase<StepMatrix> &, bool);
+  //void (*step)(const Eigen::MatrixBase<StepMatrix> &, bool, int, int);
+  void (*step)(const MatrixType &, bool, int, int);
   int (*deflate)(const Eigen::MatrixBase<Derived> &, int &, int &, const double);
-  if constexpr (std::is_arithmetic<typename Derived::Scalar>::value && !ak_is_hermitian) {
-    end_of_while = 1;
-    step = &DoubleShiftQrStep<StepMatrix>;
-    deflate = &DeflateSchur<Derived>;
-    tridiagonal_result = false;
-  } else {
-    step = &ImplicitQrStep<typename MatrixType::Scalar, ak_is_hermitian, StepMatrix>;
+//  if constexpr (std::is_arithmetic<typename Derived::Scalar>::value && !ak_is_hermitian) {
+//    end_of_while = 1;
+//    step = &DoubleShiftQrStep<StepMatrix>;
+//    deflate = &DeflateSchur<Derived>;
+//    tridiagonal_result = false;
+//  } else {
+    //step = &ImplicitQrStep<typename MatrixType::Scalar, ak_is_hermitian, StepMatrix>;
+    step = &ImplicitQrStep<typename MatrixType::Scalar, ak_is_hermitian, Derived>;
     deflate = &DeflateDiagonal<Derived>;
-  }
+//  }
   EASY_END_BLOCK;
 
   // qr iteration
@@ -745,10 +770,8 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
         steps_since_deflation = 1;
       }
       EASY_BLOCK("1 Step of the QR Iteration", profiler::colors::Yellow);
-      step(const_cast<MatrixType &>(a_matrix)(Eigen::seq(begin, end),
-                                              Eigen::seq(begin, end)),
-           exceptional_shift);
-      EASY_END_BLOCK;
+      //step(const_cast<MatrixType &>(a_matrix), exceptional_shift, begin, end);
+      step(a_matrix, exceptional_shift, begin, end);
       EASY_END_BLOCK;
     }
   }
@@ -776,4 +799,177 @@ QrMethod(const Eigen::MatrixBase<Derived> &ak_matrix, const double ak_tol = 1e-1
   return QrIterationHessenberg<ComplexDataType, IsHermitian>(A, ak_tol);
 }
 }  // namespace nla_exam
+
+
+/* Executes one step of the implicit qr algorithm for a tridiagonal Matrix
+ * Parameter:
+ * - a_matrix: Tridiagonal Matrix
+ * Return: void
+ */
+//typename std::enable_if_t<std::is_same<DataType, double>::value, double>
+//template <class DataType, bool is_symmetric, typename Derived>
+//DataType
+//ImplicitQrStepWithQ(const Eigen::MatrixBase<Derived> &a_matrix,
+//                    const DataType shift,
+//                    const Eigen::MatrixBase<Derived> &a_V,
+//                    const int j) {
+//  Eigen::MatrixBase<Derived> &matrix = const_cast<Eigen::MatrixBase<Derived> &>(a_matrix);
+//  Eigen::MatrixBase<Derived> &V = const_cast<Eigen::MatrixBase<Derived> &>(a_V);
+//  int n = a_matrix.rows();
+//  assert( n > 2);
+//  std::vector<std::array<DataType, 2>> entry_values(n-1);
+//  entry_values.at(0) = GetGivensEntries<DataType>(a_matrix(0, 0) - shift, a_matrix(1, 0));
+//
+//  DataType c = entry_values.at(0)[0];
+//  DataType s = entry_values.at(0)[1];
+//  DataType e = s * matrix(2, 1);
+//  DataType x1 = c * c * matrix(0, 0) + s * s * matrix(1,1) + 2 * c * s * matrix(0, 1);
+//  DataType a2 = c * -s * matrix(0,0) - s * s * matrix(0, 1) + c * c * matrix(0, 1) + s * c * matrix(1, 1);
+//  DataType a3 = c * matrix(1, 2);
+//  DataType x2 = c * c * matrix(1, 1) + s * s * matrix(0,0) - 2 * c * s * matrix(1, 0);
+//
+//  nla_exam::ApplyGivensRight<DataType>(V(Eigen::all, Eigen::seqN(0, 2)),
+//                                      entry_values.at(0)[0], entry_values.at(0)[1]);
+//
+//  matrix(1, 0) = a2;
+//  matrix(0, 1) = a2;
+//  matrix(1, 2) = a3;
+//  matrix(2, 1) = a3;
+//  matrix(0, 0) = x1;
+//  matrix(1, 1) = x2;
+//  matrix(0, 2) = e;
+//  matrix(2, 0) = e;
+//  // buldge chasing
+//  for (int k = 1; k < n - 2; ++k) {
+//    entry_values.at(k) = GetGivensEntries<DataType>(a_matrix(k, k - 1), a_matrix(k + 1, k - 1));
+//
+//    DataType c = entry_values.at(k)[0];
+//    DataType s = entry_values.at(k)[1];
+//    DataType a1 = c * matrix(k, k - 1) + s * a_matrix(k+1, k - 1);
+//    DataType e = s * matrix(k+2, k+1);
+//    DataType x1 = c * c * matrix(k, k) + s * s * matrix(k+1,k+1) + 2 * c * s * matrix(k, k+1);
+//    DataType a2 = c * -s * matrix(k,k) - s * s * matrix(k, k+1) + c * c * matrix(k, k+1) + s * c * matrix(k+1, k+1);
+//    DataType a3 = c * matrix(k+1, k+2);
+//    DataType x2 = c * c * matrix(k+1, k+1) + s * s * matrix(k,k) - 2 * c * s * matrix(k+1, k);
+//
+//    nla_exam::ApplyGivensRight<DataType>(V(Eigen::all, Eigen::seqN(k, 2)),
+//                                      entry_values.at(k)[0], entry_values.at(k)[1]);
+//    matrix(k-1, k) = a1;
+//    matrix(k, k-1) = a1;
+//    matrix(k+1, k) = a2;
+//    matrix(k, k+1) = a2;
+//    matrix(k+1, k+2) = a3;
+//    matrix(k+2, k+1) = a3;
+//    matrix(k, k) = x1;
+//    matrix(k+1, k+1) = x2;
+//    matrix(k, k+2) = e;
+//    matrix(k+2, k) = e;
+//
+//    matrix(k - 1, k + 1) = 0;
+//    matrix(k + 1, k - 1) = 0;
+//  }
+//  entry_values.at(n-2) = GetGivensEntries<DataType>(a_matrix(n - 2, n - 3), a_matrix(n - 1, n - 3));
+//
+//  c = entry_values.at(n-2)[0];
+//  s = entry_values.at(n-2)[1];
+//  DataType a1 = c * matrix(n-2, n - 3) + s * a_matrix(n-1,  n - 3);
+//  x1 = c * c * matrix(n-2, n-2) + s * s * matrix(n-1,n-1) + 2 * c * s * matrix(n-2, n-1);
+//  a2 = c * -s * matrix(n-2,n-2) - s * s * matrix(n-2, n-1) + c * c * matrix(n-2, n-1) + s * c * matrix(n-1, n-1);
+//  x2 = c * c * matrix(n-1, n-1) + s * s * matrix(n-2,n-2) - 2 * c * s * matrix(n-1, n-2);
+//
+//  nla_exam::ApplyGivensRight<DataType>(V(Eigen::all, Eigen::seqN(n - 2, 2)),
+//                                      entry_values.at(n-2)[0], entry_values.at(n-2)[1]);
+//
+//  matrix(n-3, n-2) = a1;
+//  matrix(n-2, n-3) = a1;
+//  matrix(n-1, n-2) = a2;
+//  matrix(n-2, n-1) = a2;
+//  matrix(n-2, n-2) = x1;
+//  matrix(n-1, n-1) = x2;
+//
+//  matrix(n - 3, n - 1) = 0;
+//  matrix(n - 1, n - 3) = 0;
+//
+//  return entry_values.at(j-2)[1];
+//}
+////typename std::enable_if_t<std::is_same<DataType, double>::value, double>
+//template <class DataType, bool is_symmetric>
+//DataType
+//ImplicitQrStepWithQ(tridiag_matrix<DataType> &a_matrix,
+//                    const DataType shift,
+//                    std::vector<std::vector<DataType>> &a_V,
+//                    const int j) {
+//  int n = a_matrix.diag.size();
+//  assert( n > 2);
+//  std::vector<std::array<DataType, 2>> entry_values(n-1);
+//  entry_values.at(0) = GetGivensEntries<DataType>(a_matrix.diag.at(0) - shift, a_matrix.sdiag.at(0));
+//
+//  DataType c = entry_values.at(0)[0];
+//  DataType s = entry_values.at(0)[1];
+//  DataType e = s * a_matrix.sdiag.at(1);
+//  DataType x1 = c * c * a_matrix.diag.at(0) + s * s * a_matrix.diag.at(1) + 2 * c * s * a_matrix.sdiag.at(0);
+//  DataType a2 = c * -s * a_matrix.diag.at(0) - s * s * a_matrix.sdiag.at(0) + c * c * a_matrix.sdiag.at(0) + s * c * a_matrix.diag.at(1);
+//  DataType a3 = c * a_matrix.sdiag.at(1);
+//  DataType x2 = c * c * a_matrix.diag.at(1) + s * s * a_matrix.diag.at(0) - 2 * c * s * a_matrix.sdiag.at(0);
+//
+//  for (int64_t i = 0; i < a_V[0].size(); ++i) {
+//    DataType tmp =  a_V[0][i];
+//    a_V[0][i] = c * tmp + s * a_V[1][i];
+//    a_V[1][i] = -s * tmp + c * a_V[1][i];
+//  }
+//
+//  a_matrix.sdiag.at(0) = a2;
+//  a_matrix.sdiag.at(1) = a3;
+//  a_matrix.diag.at(0) = x1;
+//  a_matrix.diag.at(1) = x2;
+//  // buldge chasing
+//  for (int k = 1; k < n - 2; ++k) {
+//    entry_values.at(k) = GetGivensEntries<DataType>(a_matrix.sdiag.at(k - 1), e);
+//
+//    c = entry_values.at(k)[0];
+//    s = entry_values.at(k)[1];
+//    DataType a1 = c * a_matrix.sdiag.at(k - 1) + s * e;
+//    e = s * a_matrix.sdiag.at(k+1);
+//    DataType x1 = c * c * a_matrix.diag.at(k) + s * s * a_matrix.diag.at(k+1) + 2 * c * s * a_matrix.sdiag.at(k);
+//    DataType a2 = c * -s * a_matrix.diag.at(k) - s * s * a_matrix.sdiag.at(k) + c * c * a_matrix.sdiag.at(k) + s * c * a_matrix.diag.at(k+1);
+//    DataType a3 = c * a_matrix.sdiag.at(k+1);
+//    DataType x2 = c * c * a_matrix.diag.at(k+1) + s * s * a_matrix.diag.at(k) - 2 * c * s * a_matrix.sdiag.at(k);
+//  for (int64_t i = 0; i < a_V[0].size(); ++i) {
+//    DataType tmp =  a_V[k][i];
+//    a_V[k][i] = c * tmp + s * a_V[k+1][i];
+//    a_V[k+1][i] = -s * tmp + c * a_V[k+1][i];
+//  }
+//
+//    a_matrix.sdiag.at(k-1) = a1;
+//    a_matrix.sdiag.at(k) = a2;
+//    a_matrix.sdiag.at(k+1) = a3;
+//    a_matrix.diag.at(k) = x1;
+//    a_matrix.diag.at(k+1) = x2;
+//
+//  }
+//  entry_values.at(n-2) = GetGivensEntries<DataType>(a_matrix.sdiag.at(n - 2), e);
+//
+//  c = entry_values.at(n-2)[0];
+//  s = entry_values.at(n-2)[1];
+//  DataType a1 = c * a_matrix.sdiag.at(n-3) + s * e;
+//  x1 = c * c * a_matrix.diag.at(n-2) + s * s * a_matrix.diag.at(n-1) + 2 * c * s * a_matrix.sdiag.at(n-2);
+//  a2 = c * -s * a_matrix.diag.at(n-2) - s * s * a_matrix.sdiag.at(n-2) + c * c * a_matrix.sdiag.at(n-2) + s * c * a_matrix.diag.at(n-1);
+//  x2 = c * c * a_matrix.diag.at(n-1) + s * s * a_matrix.diag.at(n-2) - 2 * c * s * a_matrix.sdiag.at(n-2);
+//
+//
+//  a_matrix.sdiag.at(n-3) = a1;
+//  a_matrix.sdiag.at(n-2) = a2;
+//  a_matrix.diag.at(n-2) = x1;
+//  a_matrix.diag.at(n-1) = x2;
+//
+//  for (int64_t i = 0; i < a_V[0].size(); ++i) {
+//    DataType tmp =  a_V[n-2][i];
+//    a_V[n-2][i] = c * tmp + s * a_V[n-1][i];
+//    a_V[n-1][i] = -s * tmp + c * a_V[n-1][i];
+//  }
+//
+//  return entry_values.at(j-2)[1];
+//}
+
+
 #endif
