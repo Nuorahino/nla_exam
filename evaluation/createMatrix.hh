@@ -130,24 +130,6 @@ VectorType CreateRandomVector(const int ak_size,
 }
 
 
-//template<bool lazy>
-//std::vector<double> test2GetApproximationError(
-//    const std::vector<std::complex<double>>& ak_estimate,
-//    const std::vector<std::complex<double>>& ak_exact) {
-//  assert( ak_estimate.size() == ak_exact.size());
-//  std::vector<double> res;
-//  res.reserve(ak_estimate.size());
-//  for (auto estimate : ak_estimate) {
-//    double min = std::numeric_limits<double>::max();
-//    for (auto exact : ak_exact) {
-//      double dist = std::abs(estimate - exact);
-//      if (dist < min) min = dist;
-//    }
-//    res.push_back(min);
-//  }
-//  return res;
-//}
-
 // Creating Random Matrices
 template<typename MatrixType>
 MatrixType CreateUnitaryMatrix(const int ak_size,
@@ -260,17 +242,12 @@ CreateRandom(const int ak_size, const bool is_symm,
     //A = CreateStdRandomSchur<MatrixType>(ak_size, ak_seed);
     A = CreateStdRandomNormalSchur<MatrixType>(ak_size, std::rand());
     for (int i = 0; i < ak_size-1; ++i) {
-    T trace = A(Eigen::seq(i, i+1), Eigen::seq(i, i+1)).trace();
-    T tmp = std::sqrt(trace * trace - 4.0 * A(Eigen::seq(i, i+1), Eigen::seq(i, i+1)).determinant());
-    T ev1 = (trace + tmp) / 2.0;
-    T ev2 = (trace - tmp) / 2.0;
-//      T d = (A(i, i) + A(i + 1, i + 1)) / 2.0;
-//      T  pq = std::sqrt(T{ d * d - A(i, i) * A(i + 1, i + 1)
-//            + A(i, i + 1) * A(i + 1, i)});
-//      res.at(i) = d - pq;                                                         // First eigenvalue
+      T trace = A(Eigen::seq(i, i+1), Eigen::seq(i, i+1)).trace();
+      T tmp = std::sqrt(trace * trace - 4.0 * A(Eigen::seq(i, i+1), Eigen::seq(i, i+1)).determinant());
+      T ev1 = (trace + tmp) / 2.0;
+      T ev2 = (trace - tmp) / 2.0;
       res.at(i) = ev1;                                                         // First eigenvalue
       ++i;
-//      res.at(i) = d + pq;                                                         // Second eigenvalue
       res.at(i) = ev2;                                                         // Second eigenvalue
     }
     if (ak_size % 2 == 1) {

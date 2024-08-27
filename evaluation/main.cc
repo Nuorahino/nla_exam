@@ -7,13 +7,16 @@
 
 #include "qr.hh"
 #include "test.hh"
-#include "test_cases.hh"
 
 
 // Maybe use std::optional instead
 int main(int argc, char** argv) {
   EASY_PROFILER_ENABLE;
-  std::cout << "Project Version: " << "Solution needed" << std::endl;
+  std::string version = "new";
+#ifdef EIGEN
+  version = "EIGEN";
+#endif
+  std::cout << "Project Version: " << version << std::endl;
 
   std::string filename = GetFileName();
   std::string basedir = "/home/georg/uni/12_sem24/ba2/";
@@ -31,38 +34,57 @@ int main(int argc, char** argv) {
     max_size = atoi(argv[2]);
     seed = atoi(argv[3]);
   }
-  //run_small_tests();
 
 
-  std::vector<int> testsizes;
-  testsizes = {10, 50, 100, 1000};
+//  std::vector<int> testsizes;
+//  testsizes = {10, 50, 100, 1000};
   profiler::startListen();
 
-  std::cout << "Testing for: " << testsizes << std::endl;
-  //for( int i = start; i <= max_size; ++i ) {
-  for (int i : testsizes) {
+  //std::cout << "Testing for: " << testsizes << std::endl;
+  std::cout << "Testing for: " << start << " to " << max_size << std::endl;
+  for( int i = start; i <= max_size; ++i ) {
+    std::string cur_size = std::to_string(i);
+  //for (int i : testsizes) {
+#ifdef FULL
+#ifdef REAL_SYMM
   profiler::startListen();
     RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-12);
-  profiler::dumpBlocksToFile("test_profile1.prof");
-    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-6);
-  profiler::dumpBlocksToFile("test_profile2.prof");
-//  profiler::startListen();
-//    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, false, 1e-12);
-//  profiler::dumpBlocksToFile("test_profile1.prof");
-//    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, false, 1e-6);
-//  profiler::dumpBlocksToFile("test_profile2.prof");
-#ifdef HALF
-    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-12);
+    profiler::dumpBlocksToFile((basedir + "testresults/profiling/real_symm/" + filename + "size" + cur_size + ".prof").c_str());
+#endif
+#ifdef REAL_NON_SYMM
+    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, false, 1e-12);
+    profiler::dumpBlocksToFile((basedir + "testresults/profiling/real_non_symm/" + filename + "size" + cur_size + ".prof").c_str());
+#endif
+#ifdef COMPLEX_SYMM
     RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, true, 1e-12);
+    profiler::dumpBlocksToFile((basedir + "testresults/profiling/complex_symm/" + filename + "size" + cur_size + ".prof").c_str());
+#endif
+#ifdef COMPLEX_NON_SYMM
     RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, false, 1e-12);
+    profiler::dumpBlocksToFile((basedir + "testresults/profiling/complex_non_symm/" + filename + "size" + cur_size + ".prof").c_str());
+#endif
 #endif
 
-#ifdef FULL
-    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-6);
-    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, true, 1e-6);
-    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, false, 1e-6);
+#ifdef HALF
+#ifdef REAL_SYMM
+  profiler::startListen();
+    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-8);
+    profiler::dumpBlocksToFile((basedir + "testresults/profiling/real_symm_half/" + filename + "size" + cur_size + ".prof").c_str());
+#endif
+#ifdef REAL_NON_SYMM
+    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, false, 1e-8);
+    profiler::dumpBlocksToFile((basedir + "testresults/profiling/real_non_symm_half/" + filename + "size" + cur_size + ".prof").c_str());
+#endif
+#ifdef COMPLEX_SYMM
+    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, true, 1e-8);
+    profiler::dumpBlocksToFile((basedir + "testresults/profiling/complex_symm_half/" + filename + "size" + cur_size + ".prof").c_str());
+#endif
+#ifdef COMPLEX_NON_SYMM
+    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, false, 1e-8);
+    profiler::dumpBlocksToFile((basedir + "testresults/profiling/complex_non_symm_half/" + filename + "size" + cur_size + ".prof").c_str());
+#endif
+
 #endif
   }
-  profiler::dumpBlocksToFile("test_profile.prof");
   return 1;
 }
