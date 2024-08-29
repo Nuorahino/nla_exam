@@ -10,6 +10,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 
 add_library(QR INTERFACE include/qr.hh)
+#target_compile_options(QR INTERFACE -O3 -msse -msse2 -DIMPLICIT -DSINGLE)
 target_compile_options(QR INTERFACE -O3 -msse -msse2 -DIMPLICIT -DSINGLE)
 #target_compile_options(QR INTERFACE -Wall -Wextra -Wpedantic -Wfloat-equal -Wshadow -Wunreachable-code -Wdouble-promotion -Wmisleading-indentation)
 #target_compile_options(QR INTERFACE -Wall -Wextra)

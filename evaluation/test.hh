@@ -4,7 +4,11 @@
 #ifdef EIGEN
 #define VERSION "EIGEN"
 #else
-#define VERSION "eigen_elementwise"
+#ifdef TWO_VEC
+#define VERSION "elementwise2"
+#else
+#define VERSION "elementwise"
+#endif
 #endif
 
 #include <fstream>
@@ -21,6 +25,7 @@
 #include "createMatrix.hh"
 #include "../tests/helpfunctions_for_test.hh"
 #include "../lapack/lapack_interface_impl.hh"
+#include "../matrix/matrix_classes.hh"
 
 /*
  * Write the summary Header to the file
@@ -124,6 +129,11 @@ void RunTest(std::ofstream& a_summary_file, std::ofstream& a_eigenvalue_file,
   std::tie(M, res) = CreateRandom<MatrixType>(ak_size, ak_is_hermitian, ak_seed);
 
   nla_exam::HessenbergTransformation<>(M, ak_is_hermitian);
+#ifdef TWO_VEC
+  tridiagonal_matrix2 t_mat{M.real()};
+#else
+  tridiagonal_matrix t_mat{M.real()};
+#endif
 
   auto start = std::chrono::steady_clock::now();
   std::vector<C> estimate;
@@ -137,7 +147,8 @@ void RunTest(std::ofstream& a_summary_file, std::ofstream& a_eigenvalue_file,
     if(es.info()) std::cout << "failed" << std::endl;
     estimate = ConvertToVec(test);
 #else
-    estimate = nla_exam::QrMethod<true>(M.real(), ak_tol);
+    // TODO make the Eigen::MatrixXd templated
+    estimate = nla_exam::QrMethod<true>(t_mat, ak_tol);
 #endif
   } else {
 #ifdef EIGEN
@@ -152,7 +163,7 @@ void RunTest(std::ofstream& a_summary_file, std::ofstream& a_eigenvalue_file,
     }
     estimate = ConvertToVec(test);
 #else
-    estimate = nla_exam::QrMethod<false>(M, ak_tol);
+    //estimate = nla_exam::QrMethod<false>(M, ak_tol);
 #endif
   }
 
