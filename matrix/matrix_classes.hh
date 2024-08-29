@@ -16,6 +16,7 @@ class tridiagonal_matrix2{
     typedef DT Scalar;
 
     tridiagonal_matrix2() = default;
+
     explicit tridiagonal_matrix2(const Eigen::Matrix<DT, -1, -1> &A) {
       diag.resize(A.rows());
       sdiag.resize(A.rows());
@@ -25,6 +26,8 @@ class tridiagonal_matrix2{
       }
         diag.at(A.rows() - 1) = A(A.rows() - 1,A.rows() - 1);
     }
+
+    ~tridiagonal_matrix2() = default;
 
 
     DT &operator() (const unsigned i, const unsigned j) {
@@ -65,6 +68,7 @@ class tridiagonal_matrix{
     typedef DT Scalar;
 
     tridiagonal_matrix() = default;
+
     explicit tridiagonal_matrix(const Eigen::Matrix<DT, -1, -1> &A) {
       data.resize(A.rows());
       for(int i = 0; i < A.rows() - 1; ++i) {
@@ -76,6 +80,8 @@ class tridiagonal_matrix{
       data.at(i)[0] = A(i,i);
         //data.push_back({A(A.rows() - 1,A.rows() - 1), 0});
     }
+
+    ~tridiagonal_matrix() = default;
 
     DT& operator() (const unsigned i, const unsigned j) {
       if (i == j) {

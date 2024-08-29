@@ -701,7 +701,7 @@ template <class DataType, bool ak_is_hermitian, class Matrix>
 std::vector<DataType>
 QrIterationHessenberg(Matrix &a_matrix,
                       const double ak_tol = 1e-12) {
-  EASY_PROFILER_ENABLE;
+  //EASY_PROFILER_ENABLE;
   EASY_BLOCK("QR iteration initalization", profiler::colors::Blue);
   // generell definitions
   int begin = 0;
