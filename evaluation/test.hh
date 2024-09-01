@@ -115,7 +115,7 @@ std::vector<double> GetApproximationError(
  * - ak_tol: specify the tolerance
  */
 template<class MatrixType>
-void RunTest(std::ofstream& a_summary_file, std::ofstream& a_eigenvalue_file,
+void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_eigenvalue_file,
     const int ak_size, const int ak_seed, const bool ak_is_hermitian,
     const double ak_tol = 1e-12) {
   typedef std::complex<double> C;
