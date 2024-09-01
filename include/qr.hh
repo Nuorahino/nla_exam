@@ -657,7 +657,7 @@ CalcEigenvaluesFromSchur(const Matrix &ak_matrix,
                          const bool ak_matrix_is_diagonal = false) {
   std::vector<DataType> res(ak_matrix.size());
   if (ak_matrix_is_diagonal || ak_matrix.size() == 1) {
-    for (int i = 0; i < ak_matrix.size(); ++i) {
+    for (unsigned i = 0; i < ak_matrix.size(); ++i) {
       res.at(i) = ak_matrix(i, i);
     }
   } else {  // reel Schur form

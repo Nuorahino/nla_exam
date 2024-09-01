@@ -25,7 +25,7 @@ std::vector<int> new_hungarian_algorithm(const std::vector<std::vector<DT>> &gra
       Z.at(cur_b) = true;
       const int a = match.at(cur_b);
       DT delta = std::numeric_limits<DT>::max();
-      int next_b;
+      int next_b = -1;
 
       for (int b = 0; b < n; ++b) {
         if(!Z.at(b)) {
