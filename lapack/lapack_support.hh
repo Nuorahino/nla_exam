@@ -4,6 +4,16 @@
 #include <complex.h>
 
 extern "C" {
+extern int dsteqr_(char*,               // Compz: "N" no eigenvalues
+                   int*,                // N: order of the Matrix
+                   double*,             // D: double precision array of diagonal entries
+                   double*,             // E: double precision array of subdiagonal entries
+                   double*,             // Z: double preciosion array when no eigenvalues are computed of size n
+                   int*,                // LDZ: without eigenvalues 1
+                   double*,             // WORK: double precision array with Compz = N unreferenzed
+                   int*);               // INFO: Output
+
+
 extern int sgeev_(char*,                // jobvl: 'V' left eigenvectors are computed, 'V' not
                   char*,                // jobvr: 'V' right eigenvectors are computed, 'V' not
                   int*,                 // N: order of the matrix

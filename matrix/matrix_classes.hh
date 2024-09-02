@@ -8,7 +8,7 @@
 
 template<class DT>
 class tridiagonal_matrix2{
-  private:
+  public:
     std::vector<DT> diag;
     std::vector<DT> sdiag;
 
@@ -19,12 +19,12 @@ class tridiagonal_matrix2{
 
     explicit tridiagonal_matrix2(const Eigen::Matrix<DT, -1, -1> &A) {
       diag.resize(A.rows());
-      sdiag.resize(A.rows());
+      sdiag.resize(A.rows() - 1);
       for(int i = 0; i < A.rows() - 1; ++i) {
         diag.at(i) = A(i,i);
         sdiag.at(i) = A(i+1,i);
       }
-        diag.at(A.rows() - 1) = A(A.rows() - 1,A.rows() - 1);
+      diag.at(A.rows() - 1) = A(A.rows() - 1,A.rows() - 1);
     }
 
     ~tridiagonal_matrix2() = default;

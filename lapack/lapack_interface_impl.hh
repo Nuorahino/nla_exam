@@ -10,6 +10,27 @@
 #include "lapack_support.hh"
 #include "../tests/helpfunctions_for_test.hh"
 
+template<class DataType>
+std::vector<std::complex<DataType>>
+CalculateTridiagonalEigenvalues(std::vector<DataType> diag, std::vector<DataType> sdiag,
+                                const bool calcEigenvectors = false) {
+  assert(!calcEigenvectors);
+
+  char COMPZ = 'N';
+  int n = diag.size();
+  DataType* D = &diag[0];
+  DataType* E = &sdiag[0];
+  DataType* Z = new DataType[n];
+  int LDZ = 1;
+  DataType* WORK = new DataType[1];
+  int INFO;
+  if constexpr (std::is_same<DataType, double>::value) {
+    dsteqr_(&COMPZ, &n, D, E, Z, &LDZ, WORK, &INFO);
+  } else if constexpr (std::is_same<DataType, float>::value) {
+  }
+
+  return std::vector<std::complex<DataType>>{D, D + n};
+}
 
 template<class DataType, class Derived>
 std::tuple<Eigen::Matrix<DataType, -1, -1>, Eigen::Vector<typename ComplexDataType<DataType>::type, -1>>

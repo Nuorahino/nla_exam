@@ -1,6 +1,9 @@
 #ifndef TEST_HH_
 #define TEST_HH_
 
+#ifdef LAPACK
+#define VERSION "LAPACK"
+#else
 #ifdef EIGEN
 #define VERSION "EIGEN"
 #else
@@ -8,6 +11,7 @@
 #define VERSION "elementwise2"
 #else
 #define VERSION "elementwise"
+#endif
 #endif
 #endif
 
@@ -132,16 +136,23 @@ void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_ei
 
   auto start = std::chrono::steady_clock::now();
   std::vector<C> estimate;
+#ifdef LAPACK
+  tridiagonal_matrix2 t_mat{M.real()};
+#else
 #ifdef TWO_VEC
   tridiagonal_matrix2 t_mat{M.real()};
 #else
   tridiagonal_matrix t_mat{M.real()};
+#endif
 #endif
 
 #ifdef EIGEN
  Eigen::VectorXcd test;
 #endif
   if (ak_is_hermitian) {
+#ifdef LAPACK
+  estimate = CalculateTridiagonalEigenvalues(t_mat.diag, t_mat.sdiag);
+#else
 #ifdef EIGEN
     Eigen::SelfAdjointEigenSolver<MatrixType> es(M, false);
     test = es.eigenvalues();
@@ -149,6 +160,7 @@ void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_ei
     estimate = ConvertToVec(test);
 #else
     estimate = nla_exam::QrMethod<true>(t_mat, ak_tol);
+#endif
 #endif
   } else {
 #ifdef EIGEN
