@@ -4,7 +4,11 @@
 #ifdef EIGEN
 #define VERSION "EIGEN"
 #else
-#define VERSION "new_eigen_matrix"
+#ifdef TWO_VEC
+#define VERSION "elementwise2"
+#else
+#define VERSION "elementwise"
+#endif
 #endif
 
 #include <fstream>
@@ -21,6 +25,7 @@
 #include "createMatrix.hh"
 #include "../tests/helpfunctions_for_test.hh"
 #include "../lapack/lapack_interface_impl.hh"
+#include "../matrix/matrix_classes.hh"
 
 /*
  * Write the summary Header to the file
@@ -127,6 +132,12 @@ void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_ei
 
   auto start = std::chrono::steady_clock::now();
   std::vector<C> estimate;
+#ifdef TWO_VEC
+  tridiagonal_matrix2 t_mat{M.real()};
+#else
+  tridiagonal_matrix t_mat{M.real()};
+#endif
+
 #ifdef EIGEN
  Eigen::VectorXcd test;
 #endif
@@ -137,7 +148,7 @@ void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_ei
     if(es.info()) std::cout << "failed" << std::endl;
     estimate = ConvertToVec(test);
 #else
-    estimate = nla_exam::QrMethod<true>(M.real(), ak_tol);
+    estimate = nla_exam::QrMethod<true>(t_mat, ak_tol);
 #endif
   } else {
 #ifdef EIGEN
@@ -152,7 +163,7 @@ void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_ei
     }
     estimate = ConvertToVec(test);
 #else
-    estimate = nla_exam::QrMethod<false>(M, ak_tol);
+    //estimate = nla_exam::QrMethod<false>(M, ak_tol);
 #endif
   }
 

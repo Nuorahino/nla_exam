@@ -7,6 +7,8 @@
 
 #include <easy/profiler.h>
 
+#include "helpfunctions.hh"
+
 
 namespace nla_exam {
 
@@ -198,6 +200,19 @@ QrIterationHessenberg(matrix &a_matrix,
     }
   }
   return CalcEigenvaluesFromSchur<DataType, true>(a_matrix, true);
+}
+
+template <
+    bool IsHermitian, typename Matrix,
+    class DataType = typename DoubleType<IsComplex<typename Matrix::Scalar>()>::type,
+    class ComplexDataType = typename EvType<IsComplex<DataType>(), DataType>::type>
+inline std::enable_if_t<IsHermitian, std::vector<ComplexDataType>>
+QrMethod(const Matrix &ak_matrix, const double ak_tol = 1e-12) {
+  //assert(ak_matrix.rows() == ak_matrix.cols());
+  static_assert(std::is_convertible<typename Matrix::Scalar, DataType>::value,
+                "Matrix Elements must be convertible to DataType");
+  Matrix A = ak_matrix;  // Do not change the input matrix
+  return QrIterationHessenberg<ComplexDataType, IsHermitian>(A, ak_tol);
 }
 
 } // namespace nla_exam

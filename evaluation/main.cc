@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
   //for (int i : testsizes) {
 #ifdef FULL
 #ifdef REAL_SYMM
-  profiler::startListen();
+  //profiler::startListen();
     RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-12);
     //profiler::dumpBlocksToFile((basedir + "testresults/profiling/real_symm/" + filename + "size" + cur_size + ".prof").c_str());
 #endif
@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
 
 #ifdef HALF
 #ifdef REAL_SYMM
-  profiler::startListen();
+  //profiler::startListen();
     RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-8);
     //profiler::dumpBlocksToFile((basedir + "testresults/profiling/real_symm_half/" + filename + "size" + cur_size + ".prof").c_str());
 #endif

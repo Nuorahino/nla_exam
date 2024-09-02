@@ -19,6 +19,7 @@
 #include <eigen3/Eigen/Dense>
 
 #include "helpfunctions.hh"
+#include "symm_qr.hh"
 
 namespace nla_exam {
 /* Compute the Householder Vector
@@ -183,18 +184,6 @@ HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
  * - ak_matrix: 2x2 Matrix of which to calculate the shift parameter
  * Return: value of the shift parameter
  */
-template <class DataType, bool is_symmetric, class Derived>
-inline std::enable_if_t<is_symmetric && std::is_arithmetic<DataType>::value, DataType>
-WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
-  EASY_FUNCTION(profiler::colors::Red);
-  DataType d = (ak_matrix(0, 0) - ak_matrix(1, 1)) / static_cast<DataType>(2.0);
-  if (d >= 0) {
-    return ak_matrix(1, 1) + d - std::hypot(d, ak_matrix(1, 0));
-  } else {
-    return ak_matrix(1, 1) + d + std::hypot(d, ak_matrix(1, 0));
-  }
-}
-
 
 // TODO(Georg): Check this is only meant to be called for real Eigenvalues?
 template <class DataType, bool is_symmetric, class Derived>
@@ -324,34 +313,6 @@ ApplyGivensRight(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c
  * Parameter:
  * - ak_a: first entry
  * - ak_b: entry to eliminate
- * Return: Vector containing {c, s}
- */
-template <class DataType>
-inline std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
-GetGivensEntries(const DataType &ak_a, const DataType &ak_b) {
-  EASY_FUNCTION(profiler::colors::Red);
-  std::vector<DataType> res(3);
-  if (std::abs(ak_a) <= std::numeric_limits<DataType>::epsilon()) {
-    res.at(0) = 0;
-    res.at(1) = 1;
-  } else {
-    DataType r = std::hypot(ak_a, ak_b);
-    res.at(0) = std::abs(ak_a) / r;
-    res.at(1) =
-        ak_b / r *
-        DataType{std::copysign(
-            DataType{1}, ak_a)};  // TODO: instead of copysign maybe use a test with >
-                                  // 0 to do this, as this always converts to float
-  }
-  res.at(2) = res.at(1);
-  return res;
-}
-
-
-/* Calculate the entries of a Givens Matrix
- * Parameter:
- * - ak_a: first entry
- * - ak_b: entry to eliminate
  * Return: Vector containing {c, s, std::conj(s)}
  */
 template <class DataType>
@@ -401,7 +362,7 @@ ExceptionalSingleShift() {
  * Return: void
  */
 template <class DataType, bool is_symmetric, typename Derived>
-void
+std::enable_if_t<!std::is_arithmetic<DataType>::value || !is_symmetric, void>
 ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
                const bool ak_exceptional_shift) {
   EASY_FUNCTION(profiler::colors::Red);
@@ -572,40 +533,6 @@ DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
 }
 
 
-/* Deflates a Matrix converging to a diagonal matrix
- * Parameter:
- * - a_matrix: Matrix to deflate
- * - a_begin: Index of fhe block that is solved currently
- * - a_end: Index of fhe End that is solved currently
- * - ak_tol: Tolerance for considering a value 0
- * Return: "true" if the block is fully solved, "false" otherwise
- */
-template <class Derived>
-int
-DeflateDiagonal(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin, int &a_end,
-                const double ak_tol = 1e-12) {
-  int state = 2;
-  for (int i = a_end; i > a_begin; --i) {
-    if (std::abs(a_matrix(i, i - 1)) <=
-        (ak_tol * (std::abs(a_matrix(i, i)) + std::abs(a_matrix(i - 1, i - 1))))) {
-      const_cast<Eigen::MatrixBase<Derived> &>(a_matrix)(i, i - 1) = 0;
-      if (state < 2) {
-        a_begin = i;
-        return 1;  // Subblock to solve found
-      }
-    } else if (state == 2) {  // Start of the block found
-      if (i == a_end) {
-        state = 0;
-      } else {
-        a_end = i;
-        state = 1;
-      }
-    }
-  }
-  return state;
-}
-
-
 /* Deflates a Matrix converging to a Schur Matrix
  * Parameter:
  * - a_matrix: Matrix to deflate
@@ -650,8 +577,8 @@ DeflateSchur(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin, int &a_en
  * - ak_matrix_is_diagonal: "true" if ak_matrix is diagonal, "false" otherwise
  * Return: Unordered Vector of eigenvalues
  */
-template <class DataType, class Derived>
-std::vector<DataType>
+template <class DataType, bool is_symmetric, class Derived>
+inline std::enable_if_t<!is_symmetric, std::vector<DataType>>
 CalcEigenvaluesFromSchur(const Eigen::MatrixBase<Derived> &ak_matrix,
                          const bool ak_matrix_is_diagonal = false) {
   std::vector<DataType> res(ak_matrix.rows());
@@ -696,8 +623,8 @@ CalcEigenvaluesFromSchur(const Eigen::MatrixBase<Derived> &ak_matrix,
  * - ak_tol: Tolerance for considering a value 0
  * Return: Unordered Vector of eigenvalues
  */
-template <class DataType, bool ak_is_hermitian, class Derived>
-std::vector<DataType>
+template <class DataType, bool is_hermitian, class Derived>
+std::enable_if_t<!std::is_arithmetic<typename Derived::Scalar>::value || !is_hermitian, std::vector<DataType>>
 QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
                       const double ak_tol = 1e-12) {
   //EASY_PROFILER_ENABLE;
@@ -714,13 +641,13 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
   bool tridiagonal_result = true;
   void (*step)(const Eigen::MatrixBase<StepMatrix> &, bool);
   int (*deflate)(const Eigen::MatrixBase<Derived> &, int &, int &, const double);
-  if constexpr (std::is_arithmetic<typename Derived::Scalar>::value && !ak_is_hermitian) {
+  if constexpr (std::is_arithmetic<typename Derived::Scalar>::value && !is_hermitian) {
     end_of_while = 1;
     step = &DoubleShiftQrStep<StepMatrix>;
     deflate = &DeflateSchur<Derived>;
     tridiagonal_result = false;
   } else {
-    step = &ImplicitQrStep<typename MatrixType::Scalar, ak_is_hermitian, StepMatrix>;
+    step = &ImplicitQrStep<typename MatrixType::Scalar, is_hermitian, StepMatrix>;
     deflate = &DeflateDiagonal<Derived>;
   }
   EASY_END_BLOCK;
@@ -739,7 +666,7 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
       ++steps_since_deflation;
       bool exceptional_shift = false;
       if (steps_since_deflation > 10) {
-        if constexpr (!ak_is_hermitian) {
+        if constexpr (!is_hermitian) {
           exceptional_shift = true;
         }
         steps_since_deflation = 1;
@@ -752,7 +679,7 @@ QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
       EASY_END_BLOCK;
     }
   }
-  return CalcEigenvaluesFromSchur<DataType>(a_matrix, tridiagonal_result);
+  return CalcEigenvaluesFromSchur<DataType, false>(a_matrix, tridiagonal_result);
 }
 
 
@@ -766,13 +693,14 @@ template <
     bool IsHermitian, typename Derived,
     class DataType = typename DoubleType<IsComplex<typename Derived::Scalar>()>::type,
     class ComplexDataType = typename EvType<IsComplex<DataType>(), DataType>::type>
-std::vector<ComplexDataType>
+inline std::enable_if_t<!IsHermitian, std::vector<ComplexDataType>>
 QrMethod(const Eigen::MatrixBase<Derived> &ak_matrix, const double ak_tol = 1e-12) {
   assert(ak_matrix.rows() == ak_matrix.cols());
   static_assert(std::is_convertible<typename Derived::Scalar, DataType>::value,
                 "Matrix Elements must be convertible to DataType");
   typedef Eigen::Matrix<DataType, -1, -1> Matrix;
   Matrix A = ak_matrix;  // Do not change the input matrix
+  std::cout << "inside QR method" << std::endl;
   return QrIterationHessenberg<ComplexDataType, IsHermitian>(A, ak_tol);
 }
 }  // namespace nla_exam
