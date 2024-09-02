@@ -10,7 +10,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(debug_options -Wall -Wextra -Wpedantic -Wfloat-equal -Wshadow -Wunreachable-code -Wdouble-promotion -Wmisleading-indentation)
 
 add_library(QR INTERFACE include/qr.hh)
-target_compile_options(QR INTERFACE -O3 -msse -msse2 -DIMPLICIT -DSINGLE -pg ${debug_options})
+#target_compile_options(QR INTERFACE -O3 -msse -msse2 -DIMPLICIT -DSINGLE -pg ${debug_options})
+target_compile_options(QR INTERFACE -O3 -msse -msse2 -DIMPLICIT -DSINGLE ${debug_options})
 
 
 find_package(Eigen3 3.3 REQUIRED)

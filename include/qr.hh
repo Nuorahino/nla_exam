@@ -640,7 +640,7 @@ QrIterationHessenberg(matrix &a_matrix,
 //    deflate = &deflateschur<derived>;
 //    tridiagonal_result = false;
 //  } else {
-    step = &ImplicitQrStep<typename matrix::scalar, is_hermitian, matrix>;
+    step = &ImplicitQrStep<typename matrix::Scalar, is_hermitian, matrix>;
     //step = &implicitqrstep<datatype, ak_is_hermitian, matrix>;
     deflate = &DeflateDiagonal<matrix>;
 //  }
@@ -687,7 +687,7 @@ template <
     class ComplexDataType = typename EvType<IsComplex<DataType>(), DataType>::type>
 std::vector<ComplexDataType>
 QrMethod(const Matrix &ak_matrix, const double ak_tol = 1e-12) {
-  EASY_FUNCTION(profiler::colors::Green);
+  //EASY_FUNCTION(profiler::colors::Green);
   //assert(ak_matrix.rows() == ak_matrix.cols());
   static_assert(std::is_convertible<typename Matrix::Scalar, DataType>::value,
                 "Matrix Elements must be convertible to DataType");

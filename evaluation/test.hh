@@ -163,7 +163,7 @@ void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_ei
     }
     estimate = ConvertToVec(test);
 #else
-    //estimate = nla_exam::QrMethod<false>(M, ak_tol);
+    estimate = nla_exam::QrMethod<false>(M, ak_tol);
 #endif
   }
 

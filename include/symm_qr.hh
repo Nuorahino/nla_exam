@@ -30,7 +30,7 @@ CalcEigenvaluesFromSchur(const Matrix &ak_matrix,
 template <class DataType, bool is_symmetric, class Matrix>
 inline std::enable_if_t<is_symmetric && std::is_arithmetic<DataType>::value, DataType>
 WilkinsonShift(const Matrix &ak_matrix, const int i) {
-  EASY_FUNCTION(profiler::colors::Red);
+  //EASY_FUNCTION(profiler::colors::Red);
   DataType d = (ak_matrix(i, i) - ak_matrix(i + 1, i + 1)) / static_cast<DataType>(2.0);
   if (d >= 0) {
     return ak_matrix(i + 1, i + 1) + d - std::hypot(d, ak_matrix(i + 1, i));
@@ -83,7 +83,7 @@ DeflateDiagonal(Matrix &a_matrix, int &a_begin, int &a_end,
 template <class DataType>
 inline std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
 GetGivensEntries(const DataType &ak_a, const DataType &ak_b) {
-  EASY_FUNCTION(profiler::colors::Red);
+  //EASY_FUNCTION(profiler::colors::Red);
   std::vector<DataType> res(3);
   if (std::abs(ak_a) <= std::numeric_limits<DataType>::epsilon()) {
     res.at(0) = 0;
@@ -104,7 +104,7 @@ template <bool first, bool last, bool is_symmetric,
 std::enable_if_t<std::is_arithmetic<DataType>::value && is_symmetric, void>
 ApplyGivensTransformation(Matrix &matrix, const DataType ak_c,
                 const DataType ak_s, const int aBegin, DataType &buldge) {
-  EASY_FUNCTION(profiler::colors::Red);
+  //EASY_FUNCTION(profiler::colors::Red);
     int k = aBegin;
     DataType c = ak_c;
     DataType s = ak_s;
@@ -143,7 +143,7 @@ template <class DataType, bool is_symmetric, typename Matrix>
 std::enable_if_t<std::is_arithmetic<DataType>::value && is_symmetric, void>
 ImplicitQrStep(Matrix &matrix,
                const int aBegin, const int aEnd) {
-  EASY_FUNCTION(profiler::colors::Red);
+  //EASY_FUNCTION(profiler::colors::Red);
   int n = aEnd - aBegin + 1;
   DataType shift = WilkinsonShift<DataType, is_symmetric>(
         matrix, aEnd - 1);
@@ -176,25 +176,25 @@ ImplicitQrStep(Matrix &matrix,
  * return: unordered vector of eigenvalues
  */
 template <class DataType, bool is_hermitian, class matrix>
-std::enable_if_t<std::is_arithmetic<typename matrix::Scalar>::value || is_hermitian, std::vector<DataType>>
+std::enable_if_t<std::is_arithmetic<typename matrix::Scalar>::value && is_hermitian, std::vector<DataType>>
 QrIterationHessenberg(matrix &a_matrix,
                       const double ak_tol = 1e-12) {
-  EASY_FUNCTION(profiler::colors::Red);
+  //EASY_FUNCTION(profiler::colors::Red);
   // generell definitions
   int begin = 0;
   int end = a_matrix.size() - 1;
 
   // qr iteration
   while (0 < end) {
-    EASY_BLOCK("1 step including deflation of qr", profiler::colors::Green);
+    //EASY_BLOCK("1 step including deflation of qr", profiler::colors::Green);
     int status = DeflateDiagonal<matrix>(a_matrix, begin, end, ak_tol);
     if (status > 1) {
       end = begin - 1;
       begin = 0;
     } else {
-      EASY_BLOCK("1 step of the qr iteration", profiler::colors::Yellow);
+      //EASY_BLOCK("1 step of the qr iteration", profiler::colors::Yellow);
       ImplicitQrStep<typename matrix::Scalar, is_hermitian, matrix>(a_matrix, begin, end);
-      EASY_END_BLOCK;
+      //EASY_END_BLOCK;
     }
   }
   return CalcEigenvaluesFromSchur<DataType, true>(a_matrix, true);
