@@ -9,7 +9,6 @@
 #include <cassert>
 #include <cmath>
 #include <complex>
-#include <iostream>
 #include <random>
 #include <type_traits>
 #include <vector>
@@ -18,6 +17,7 @@
 
 #include <eigen3/Eigen/Dense>
 
+#include "symm_qr.hh"
 #include "helpfunctions.hh"
 
 namespace nla_exam {
@@ -183,18 +183,6 @@ HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
  * - ak_matrix: 2x2 Matrix of which to calculate the shift parameter
  * Return: value of the shift parameter
  */
-template <class DataType, bool is_symmetric, class Matrix>
-inline std::enable_if_t<is_symmetric && std::is_arithmetic<DataType>::value, DataType>
-WilkinsonShift(const Matrix &ak_matrix, const int i) {
-  EASY_FUNCTION(profiler::colors::Red);
-  DataType d = (ak_matrix(i, i) - ak_matrix(i + 1, i + 1)) / static_cast<DataType>(2.0);
-  if (d >= 0) {
-    return ak_matrix(i + 1, i + 1) + d - std::hypot(d, ak_matrix(i + 1, i));
-  } else {
-    return ak_matrix(i + 1, i + 1) + d + std::hypot(d, ak_matrix(i + 1, i));
-  }
-}
-
 template <class DataType, bool is_symmetric, class Derived>
 inline std::enable_if_t<!is_symmetric && std::is_arithmetic<DataType>::value, DataType>
 WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix, const int i) {
@@ -332,32 +320,32 @@ ApplyGivensRight(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c
 }
 
 
-/* Calculate the entries of a Givens Matrix
- * Parameter:
- * - ak_a: first entry
- * - ak_b: entry to eliminate
- * Return: Vector containing {c, s}
- */
-template <class DataType>
-inline std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
-GetGivensEntries(const DataType &ak_a, const DataType &ak_b) {
-  EASY_FUNCTION(profiler::colors::Red);
-  std::vector<DataType> res(3);
-  if (std::abs(ak_a) <= std::numeric_limits<DataType>::epsilon()) {
-    res.at(0) = 0;
-    res.at(1) = 1;
-  } else {
-    DataType r = std::hypot(ak_a, ak_b);
-    res.at(0) = std::abs(ak_a) / r;
-    res.at(1) =
-        ak_b / r *
-        DataType{std::copysign(
-            DataType{1}, ak_a)};  // TODO: instead of copysign maybe use a test with >
-                                  // 0 to do this, as this always converts to float
-  }
-  res.at(2) = res.at(1);
-  return res;
-}
+///* Calculate the entries of a Givens Matrix
+// * Parameter:
+// * - ak_a: first entry
+// * - ak_b: entry to eliminate
+// * Return: Vector containing {c, s}
+// */
+//template <class DataType>
+//inline std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
+//GetGivensEntries(const DataType &ak_a, const DataType &ak_b) {
+//  EASY_FUNCTION(profiler::colors::Red);
+//  std::vector<DataType> res(3);
+//  if (std::abs(ak_a) <= std::numeric_limits<DataType>::epsilon()) {
+//    res.at(0) = 0;
+//    res.at(1) = 1;
+//  } else {
+//    DataType r = std::hypot(ak_a, ak_b);
+//    res.at(0) = std::abs(ak_a) / r;
+//    res.at(1) =
+//        ak_b / r *
+//        DataType{std::copysign(
+//            DataType{1}, ak_a)};  // TODO: instead of copysign maybe use a test with >
+//                                  // 0 to do this, as this always converts to float
+//  }
+//  res.at(2) = res.at(1);
+//  return res;
+//}
 
 
 /* Calculate the entries of a Givens Matrix
@@ -406,45 +394,13 @@ ExceptionalSingleShift() {
   return {dist(rng), dist(rng)};
 }
 
-
-template <bool first, bool last, class DataType, class Matrix>
-std::enable_if_t<std::is_arithmetic<DataType>::value, void>
-ApplyGivensTransformation(Matrix &matrix, const DataType ak_c,
-                const DataType ak_s, const int aBegin, DataType &buldge) {
-    int k = aBegin;
-    DataType c = ak_c;
-    DataType s = ak_s;
-    DataType x1 = c * c * matrix(k, k) + s * s * matrix(k+1,k+1) + 2 * c * s * matrix(k, k+1);
-    DataType a2 = c * -s * matrix(k,k) - s * s * matrix(k, k+1) + c * c * matrix(k, k+1) + s * c * matrix(k+1, k+1);
-    DataType x2 = c * c * matrix(k+1, k+1) + s * s * matrix(k,k) - 2 * c * s * matrix(k+1, k);
-
-if constexpr (!first) {
-    DataType a1 = c * matrix(k, k - 1) + s * buldge;
-    matrix(k-1, k) = a1;
-    matrix(k, k-1) = a1;
-}
-
-if constexpr (!last) {
-    buldge = s * matrix(k+2, k+1);
-    DataType a3 = c * matrix(k+1, k+2);
-    matrix(k+1, k+2) = a3;
-    matrix(k+2, k+1) = a3;
-}
-
-    matrix(k+1, k) = a2;
-    matrix(k, k+1) = a2;
-    matrix(k, k) = x1;
-    matrix(k+1, k+1) = x2;
-
-}
-
 /* Executes one step of the implicit qr algorithm for a tridiagonal Matrix
  * Parameter:
  * - a_matrix: Tridiagonal Matrix
  * Return: void
  */
 template <class DataType, bool is_symmetric, typename Matrix>
-void
+std::enable_if_t<!std::is_arithmetic<DataType>::value || !is_symmetric, void>
 ImplicitQrStep(Matrix &matrix,
                const bool ak_exceptional_shift,
                const int aBegin, const int aEnd) {
@@ -462,22 +418,22 @@ ImplicitQrStep(Matrix &matrix,
   auto entries = GetGivensEntries<>(matrix(aBegin, aBegin) - shift,
                                     matrix(aBegin + 1, aBegin));  // Parameter for the initial step
   if constexpr (is_symmetric) {
-    // innitial step
-    DataType buldge = 0;
-    switch (n) {
-      case 2:
-        ApplyGivensTransformation<true, true, DataType>(matrix, entries.at(0), entries.at(1), aBegin, buldge);
-        return;
-      default:
-        ApplyGivensTransformation<true, false, DataType>(matrix, entries.at(0), entries.at(1), aBegin, buldge);
-    }
-    // buldge chasing
-    for (int k = aBegin + 1; k < aEnd - 1; ++k) {
-      entries = GetGivensEntries<>(matrix(k, k - 1), buldge);
-      ApplyGivensTransformation<false, false, DataType>(matrix, entries.at(0), entries.at(1), k, buldge);
-    }
-    entries = GetGivensEntries<>(matrix(aEnd - 1, aEnd - 2), buldge);
-    ApplyGivensTransformation<false, true, DataType>(matrix, entries.at(0), entries.at(1), aEnd - 1, buldge);
+//    // innitial step
+//    DataType buldge = 0;
+//    switch (n) {
+//      case 2:
+//        ApplyGivensTransformation<true, true, DataType>(matrix, entries.at(0), entries.at(1), aBegin, buldge);
+//        return;
+//      default:
+//        ApplyGivensTransformation<true, false, DataType>(matrix, entries.at(0), entries.at(1), aBegin, buldge);
+//    }
+//    // buldge chasing
+//    for (int k = aBegin + 1; k < aEnd - 1; ++k) {
+//      entries = GetGivensEntries<>(matrix(k, k - 1), buldge);
+//      ApplyGivensTransformation<false, false, DataType>(matrix, entries.at(0), entries.at(1), k, buldge);
+//    }
+//    entries = GetGivensEntries<>(matrix(aEnd - 1, aEnd - 2), buldge);
+//    ApplyGivensTransformation<false, true, DataType>(matrix, entries.at(0), entries.at(1), aEnd - 1, buldge);
   }
 
   return;
@@ -571,42 +527,6 @@ DoubleShiftParameter(const Eigen::MatrixBase<Derived> &ak_matrix) {
 //}
 
 
-/* Deflates a Matrix converging to a diagonal matrix
- * Parameter:
- * - a_matrix: Matrix to deflate
- * - a_begin: Index of fhe block that is solved currently
- * - a_end: Index of fhe End that is solved currently
- * - ak_tol: Tolerance for considering a value 0
- * Return: "true" if the block is fully solved, "false" otherwise
- */
-template <class Matrix>
-int
-DeflateDiagonal(Matrix &a_matrix, int &a_begin, int &a_end,
-                const double ak_tol = 1e-12) {
-  int state = 2;
-  for (int i = a_end; i > a_begin; --i) {
-    //std::cout << "in Deflate with index: " << i << std::endl;
-    if (std::abs(a_matrix(i, i - 1)) <=
-        (ak_tol * (std::abs(a_matrix(i, i)) + std::abs(a_matrix(i - 1, i - 1))))) {
-      a_matrix(i, i - 1) = 0;
-      if (state < 2) {
-        a_begin = i;
-        return 1;  // Subblock to solve found
-      }
-    } else if (state == 2) {  // Start of the block found
-      if (i == a_end) {
-        state = 0;
-      } else {
-        a_end = i;
-        state = 1;
-      }
-    }
-  }
-  //std::cout << "State" << state << std::endl;
-  return state;
-}
-
-
 /* Deflates a Matrix converging to a Schur Matrix
  * Parameter:
  * - a_matrix: Matrix to deflate
@@ -651,8 +571,8 @@ DeflateSchur(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin, int &a_en
  * - ak_matrix_is_diagonal: "true" if ak_matrix is diagonal, "false" otherwise
  * Return: Unordered Vector of eigenvalues
  */
-template <class DataType, class Matrix>
-std::vector<DataType>
+template <class DataType, bool is_symmetric, class Matrix>
+inline std::enable_if_t<!is_symmetric, std::vector<DataType>>
 CalcEigenvaluesFromSchur(const Matrix &ak_matrix,
                          const bool ak_matrix_is_diagonal = false) {
   std::vector<DataType> res(ak_matrix.size());
@@ -690,19 +610,19 @@ CalcEigenvaluesFromSchur(const Matrix &ak_matrix,
 }
 
 
-/* Get the eigenvalues of a hessenberg Matrix using the qr iteration
- * Parameter:
- * - a_matrix: Hessenberg Matrix
+/* get the eigenvalues of a hessenberg matrix using the qr iteration
+ * parameter:
+ * - a_matrix: hessenberg matrix
  * - ak_is_hermitian: "true" if a_matrix is symmetric, "false" otherwise
- * - ak_tol: Tolerance for considering a value 0
- * Return: Unordered Vector of eigenvalues
+ * - ak_tol: tolerance for considering a value 0
+ * return: unordered vector of eigenvalues
  */
-template <class DataType, bool ak_is_hermitian, class Matrix>
-std::vector<DataType>
-QrIterationHessenberg(Matrix &a_matrix,
+template <class DataType, bool is_hermitian, class matrix>
+std::enable_if_t<!std::is_arithmetic<typename matrix::Scalar>::value || !is_hermitian, std::vector<DataType>>
+QrIterationHessenberg(matrix &a_matrix,
                       const double ak_tol = 1e-12) {
-  //EASY_PROFILER_ENABLE;
-  EASY_BLOCK("QR iteration initalization", profiler::colors::Blue);
+  //easy_profiler_enable;
+  EASY_BLOCK("qr iteration initalization", profiler::colors::Blue);
   // generell definitions
   int begin = 0;
   int end = a_matrix.size() - 1;
@@ -711,24 +631,24 @@ QrIterationHessenberg(Matrix &a_matrix,
   // specific definitions
   int end_of_while = 0;
   bool tridiagonal_result = true;
-  //void (*step)(const Eigen::MatrixBase<StepMatrix> &, bool, int, int);
-  void (*step)(Matrix &, bool, int, int);
-  int (*deflate)(Matrix &, int &, int &, const double);
-//  if constexpr (std::is_arithmetic<typename Derived::Scalar>::value && !ak_is_hermitian) {
+  //void (*step)(const eigen::matrixbase<stepmatrix> &, bool, int, int);
+  void (*step)(matrix &, bool, int, int);
+  int (*deflate)(matrix &, int &, int &, const double);
+//  if constexpr (std::is_arithmetic<typename derived::scalar>::value && !ak_is_hermitian) {
 //    end_of_while = 1;
-//    step = &DoubleShiftQrStep<StepMatrix>;
-//    deflate = &DeflateSchur<Derived>;
+//    step = &doubleshiftqrstep<stepmatrix>;
+//    deflate = &deflateschur<derived>;
 //    tridiagonal_result = false;
 //  } else {
-    step = &ImplicitQrStep<typename Matrix::Scalar, ak_is_hermitian, Matrix>;
-    //step = &ImplicitQrStep<DataType, ak_is_hermitian, Matrix>;
-    deflate = &DeflateDiagonal<Matrix>;
+    step = &ImplicitQrStep<typename matrix::scalar, is_hermitian, matrix>;
+    //step = &implicitqrstep<datatype, ak_is_hermitian, matrix>;
+    deflate = &DeflateDiagonal<matrix>;
 //  }
   EASY_END_BLOCK;
 
   // qr iteration
   while (end_of_while < end) {
-    EASY_BLOCK("1 Step including deflation of QR", profiler::colors::Green);
+    EASY_BLOCK("1 step including deflation of qr", profiler::colors::Green);
     int status = deflate(a_matrix, begin, end, ak_tol);
     if (status > 0) {
       steps_since_deflation = 0;
@@ -741,17 +661,17 @@ QrIterationHessenberg(Matrix &a_matrix,
       ++steps_since_deflation;
       bool exceptional_shift = false;
       if (steps_since_deflation > 10) {
-        if constexpr (!ak_is_hermitian) {
+        if constexpr (!is_hermitian) {
           exceptional_shift = true;
         }
         steps_since_deflation = 1;
       }
-      EASY_BLOCK("1 Step of the QR Iteration", profiler::colors::Yellow);
+      EASY_BLOCK("1 step of the qr iteration", profiler::colors::Yellow);
       step(a_matrix, exceptional_shift, begin, end);
       EASY_END_BLOCK;
     }
   }
-  return CalcEigenvaluesFromSchur<DataType>(a_matrix, tridiagonal_result);
+  return CalcEigenvaluesFromSchur<DataType, false>(a_matrix, tridiagonal_result);
 }
 
 
@@ -767,6 +687,7 @@ template <
     class ComplexDataType = typename EvType<IsComplex<DataType>(), DataType>::type>
 std::vector<ComplexDataType>
 QrMethod(const Matrix &ak_matrix, const double ak_tol = 1e-12) {
+  EASY_FUNCTION(profiler::colors::Green);
   //assert(ak_matrix.rows() == ak_matrix.cols());
   static_assert(std::is_convertible<typename Matrix::Scalar, DataType>::value,
                 "Matrix Elements must be convertible to DataType");
