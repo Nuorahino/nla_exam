@@ -6,6 +6,8 @@
 
 #include <eigen3/Eigen/Dense>
 
+#include "eigen_wrapper.hh"
+
 template<class DT>
 class tridiagonal_matrix2{
   public:
