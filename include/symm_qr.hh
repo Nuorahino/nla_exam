@@ -51,7 +51,7 @@ WilkinsonShift(const Matrix &ak_matrix, const int i) {
  * Return: "true" if the block is fully solved, "false" otherwise
  */
 template <class Matrix>
-int
+inline int
 DeflateDiagonal(Matrix &a_matrix, int &a_begin, int &a_end,
                 const double ak_tol = 1e-12) {
   int state = 2;
@@ -103,7 +103,7 @@ GetGivensEntries(const DataType &ak_a, const DataType &ak_b) {
 
 template <bool first, bool last, bool is_symmetric,
   class DataType, class Matrix>
-std::enable_if_t<std::is_arithmetic<DataType>::value && is_symmetric, void>
+inline std::enable_if_t<std::is_arithmetic<DataType>::value && is_symmetric, void>
 ApplyGivensTransformation(Matrix &matrix, const DataType ak_c,
                 const DataType ak_s, const int aBegin, DataType &buldge) {
   //EASY_FUNCTION(profiler::colors::Red);

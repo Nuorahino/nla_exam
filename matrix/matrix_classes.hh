@@ -59,10 +59,60 @@ class tridiagonal_matrix2{
 };
 
 
+//template<class DT>
+//class tridiagonal_matrix{
+//  private:
+//    std::vector<std::array<DT, 2>> data;
+//
+//  public:
+//    typedef DT Scalar;
+//
+//    tridiagonal_matrix() = default;
+//
+//    explicit tridiagonal_matrix(const Eigen::Matrix<DT, -1, -1> &A) {
+//      data.resize(A.rows());
+//      for(int i = 0; i < A.rows() - 1; ++i) {
+//        //data.push_back({A(i,i), A(i + 1, i)});
+//        data.at(i)[0] = A(i,i);
+//        data.at(i)[1] = A(i+1,i);
+//      }
+//      unsigned i = A.rows() - 1;
+//      data.at(i)[0] = A(i,i);
+//        //data.push_back({A(A.rows() - 1,A.rows() - 1), 0});
+//    }
+//
+//    ~tridiagonal_matrix() = default;
+//
+//    DT& operator() (const unsigned i, const unsigned j) {
+//      if (i == j) {
+//        return data.at(i)[0];
+//      } else if ( i == j + 1) {
+//        return data.at(j)[1];
+//      } else if ( i == j - 1) {
+//        return data.at(i)[1];
+//      }
+//      assert(false);
+//    }
+//
+//    const DT& operator() (const unsigned i, const unsigned j) const {
+//      if (i == j) {
+//        return data.at(i)[0];
+//      } else if ( i == j + 1) {
+//        return data.at(j)[1];
+//      } else if ( i == j - 1) {
+//        return data.at(i)[1];
+//      }
+//      assert(false);
+//    }
+//
+//    unsigned size() const {
+//      return data.size();
+//    }
+//};
 template<class DT>
 class tridiagonal_matrix{
   private:
-    std::vector<std::array<DT, 2>> data;
+    std::vector<DT> data;
 
   public:
     typedef DT Scalar;
@@ -70,14 +120,14 @@ class tridiagonal_matrix{
     tridiagonal_matrix() = default;
 
     explicit tridiagonal_matrix(const Eigen::Matrix<DT, -1, -1> &A) {
-      data.resize(A.rows());
+      data.resize(2 * A.rows());
       for(int i = 0; i < A.rows() - 1; ++i) {
         //data.push_back({A(i,i), A(i + 1, i)});
-        data.at(i)[0] = A(i,i);
-        data.at(i)[1] = A(i+1,i);
+        data.at(2*i) = A(i,i);
+        data.at(2*i+1) = A(i+1,i);
       }
       unsigned i = A.rows() - 1;
-      data.at(i)[0] = A(i,i);
+      data.at(2 * i) = A(i,i);
         //data.push_back({A(A.rows() - 1,A.rows() - 1), 0});
     }
 
@@ -85,28 +135,28 @@ class tridiagonal_matrix{
 
     DT& operator() (const unsigned i, const unsigned j) {
       if (i == j) {
-        return data.at(i)[0];
+        return data.at(2*i);
       } else if ( i == j + 1) {
-        return data.at(j)[1];
+        return data.at(2 * j + 1);
       } else if ( i == j - 1) {
-        return data.at(i)[1];
+        return data.at(2 * i + 1);
       }
       assert(false);
     }
 
     const DT& operator() (const unsigned i, const unsigned j) const {
       if (i == j) {
-        return data.at(i)[0];
+        return data.at(2*i);
       } else if ( i == j + 1) {
-        return data.at(j)[1];
+        return data.at(2 * j + 1);
       } else if ( i == j - 1) {
-        return data.at(i)[1];
+        return data.at(2 * i + 1);
       }
       assert(false);
     }
 
     unsigned size() const {
-      return data.size();
+      return data.size() / 2;
     }
 };
 
