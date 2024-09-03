@@ -22,6 +22,37 @@
 #include "symm_qr.hh"
 
 namespace nla_exam {
+/* Deflates a Matrix converging to a diagonal matrix
+// * Parameter:
+// * - a_matrix: Matrix to deflate
+// * - a_begin: Index of fhe block that is solved currently
+// * - a_end: Index of fhe End that is solved currently
+// * - ak_tol: Tolerance for considering a value 0
+// * Return: "true" if the block is fully solved, "false" otherwise
+// */
+//template <class Derived>
+//int DeflateDiagonal(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin,
+//                      int &a_end, const double ak_tol = 1e-12) {
+//  int state = 2;
+//  for (int i = a_end; i > a_begin; --i) {
+//    if (std::abs(a_matrix(i, i - 1)) <= (ak_tol * (std::abs(a_matrix(i, i)) +
+//          std::abs(a_matrix(i - 1, i - 1))))) {
+//      const_cast<Eigen::MatrixBase<Derived> &>(a_matrix)(i, i - 1) = 0;
+//      if (state < 2) {
+//        a_begin = i;
+//        return 1;                                                             // Subblock to solve found
+//      }
+//    } else if (state == 2) {                                                           // Start of the block found
+//      if (i == a_end) {
+//        state = 0;
+//      } else {
+//        a_end = i;
+//        state = 1;
+//      }
+//    }
+//  }
+//  return state;
+//}
 /* Compute the Householder Vector
  * Parameter:
  * - ak_x: Vector to transform to multiple of e1
@@ -201,7 +232,7 @@ WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
 
 
 template <class DataType, bool is_symmetric, class Derived>
-std::enable_if_t<IsComplex<DataType>(), DataType>
+std::enable_if_t<IsComplex<DataType>(), DataType> inline
 WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
   EASY_FUNCTION(profiler::colors::Red);
   DataType trace = ak_matrix.trace();
@@ -394,9 +425,9 @@ ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
     // buldge chasing
     for (int k = 1; k < n - 2; ++k) {
       entries = GetGivensEntries<>(a_matrix(k, k - 1), a_matrix(k + 1, k - 1));
-      ApplyGivensLeft<DataType>(matrix(Eigen::seqN(k, 2), Eigen::seq(k - 1, n - 1)),
+      ApplyGivensLeft<DataType>(matrix(Eigen::seqN(k, 2), Eigen::seq(k - 1, k + 2)),
                                 entries.at(0), entries.at(1));
-      ApplyGivensRight<DataType>(matrix(Eigen::seq(0, k + 2), Eigen::seqN(k, 2)),
+      ApplyGivensRight<DataType>(matrix(Eigen::seq(k - 1, k + 2), Eigen::seqN(k, 2)),
                                  entries.at(0), entries.at(1));
       matrix(k - 1, k + 1) = 0;
       matrix(k + 1, k - 1) = 0;
@@ -404,7 +435,7 @@ ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
     entries = GetGivensEntries<>(a_matrix(n - 2, n - 3), a_matrix(n - 1, n - 3));
     ApplyGivensLeft<DataType>(matrix(Eigen::seqN(n - 2, 2), Eigen::lastN(3)),
                               entries.at(0), entries.at(1));
-    ApplyGivensRight<DataType>(matrix(Eigen::all, Eigen::seqN(n - 2, 2)), entries.at(0),
+    ApplyGivensRight<DataType>(matrix(Eigen::lastN(3), Eigen::seqN(n - 2, 2)), entries.at(0),
                                entries.at(1));
     matrix(n - 3, n - 1) = 0;
     matrix(n - 1, n - 3) = 0;
@@ -700,7 +731,6 @@ QrMethod(const Eigen::MatrixBase<Derived> &ak_matrix, const double ak_tol = 1e-1
                 "Matrix Elements must be convertible to DataType");
   typedef Eigen::Matrix<DataType, -1, -1> Matrix;
   Matrix A = ak_matrix;  // Do not change the input matrix
-  std::cout << "inside QR method" << std::endl;
   return QrIterationHessenberg<ComplexDataType, IsHermitian>(A, ak_tol);
 }
 }  // namespace nla_exam

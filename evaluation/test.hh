@@ -3,16 +3,21 @@
 
 #ifdef LAPACK
 #define VERSION "LAPACK"
-#else
+#endif
 #ifdef EIGEN
 #define VERSION "EIGEN"
-#else
+#endif
 #ifdef TWO_VEC
 #define VERSION "elementwise2"
-#else
-#define VERSION "elementwise"
 #endif
+#ifdef ONE_VEC
+#define VERSION "elementwise1"
 #endif
+#ifdef NESTED
+#define VERSION "nested"
+#endif
+#ifdef WRAPPED
+#define VERSION "wrapped"
 #endif
 
 #include <fstream>
@@ -138,12 +143,18 @@ void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_ei
   std::vector<C> estimate;
 #ifdef LAPACK
   tridiagonal_matrix2 t_mat{M.real()};
-#else
+#endif
 #ifdef TWO_VEC
   tridiagonal_matrix2 t_mat{M.real()};
-#else
+#endif
+#ifdef ONE_VEC
   tridiagonal_matrix t_mat{M.real()};
 #endif
+#ifdef NESTED
+  tridiagonal_matrix_nested t_mat{M.real()};
+#endif
+#ifdef WRAPPED
+  EigenWrapper<Eigen::MatrixXd> t_mat{M.real()};
 #endif
 
 #ifdef EIGEN

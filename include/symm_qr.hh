@@ -216,4 +216,5 @@ QrMethod(const Matrix &ak_matrix, const double ak_tol = 1e-12) {
 }
 
 } // namespace nla_exam
+
 #endif
