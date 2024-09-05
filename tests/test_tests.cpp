@@ -39,10 +39,8 @@ TEMPLATE_TEST_CASE("Min Matching test", "[test]", std::complex<float>,
   std::mt19937 g(rd());
   std::shuffle(b.begin(), b.end(), g);
 
-  std::cout << "a: " << a << std::endl;
-  std::cout << "b: " << a << std::endl;
   order_as_min_matching(a, b);
-  for (int i = 0; i < 3; ++i) {
+  for (int i = 0; i < (n/2)*2; ++i) {
     REQUIRE_THAT(std::abs(a.at(i) - b.at(i)),
                  Catch::Matchers::WithinAbs(0, tol<TestType>()));
   }

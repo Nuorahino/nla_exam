@@ -167,12 +167,8 @@ order_as_min_matching(std::vector<DataType>& a, const std::vector<DataType>& b) 
     }
   }
 
-  std::cout << "graph" << std::endl;
-  std::cout << graph << std::endl;
   // Find Min Matching
   std::vector<int> hungry_res = new_hungarian_algorithm(graph);
-  std::cout << "result" << std::endl;
-  std::cout << hungry_res << std::endl;
   // Reorder the Vector
   std::vector<DataType> tmp = a;
   for (int i = 0; i < static_cast<int>(a.size()); ++i) {
