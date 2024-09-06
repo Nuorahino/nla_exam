@@ -1,59 +1,89 @@
+#ifndef TEST_HUNGARIAN_HH_
+#define TEST_HUNGARIAN_HH_
 /**
  * Solution to https://open.kattis.com/problems/cordonbleu using Hungarian
  * algorithm.
  */
 
 #include <limits>
-#include <numeric>
 #include <vector>
+#include <algorithm>
 
-#include<iostream>
 
 template <class DT>
 std::vector<int> new_hungarian_algorithm(const std::vector<std::vector<DT>> &graph) {
   const int n = graph.size();
-  std::vector<int> match(n+1, -1);
-  std::vector<DT> ya(n, 0);
-  std::vector<DT> yb(n, 0);
-  for (int i = 0; i < n; ++i) {
-    int cur_b = n;
-    match.at(n) = i;
-    std::vector<DT> dist(n, std::numeric_limits<DT>::max());
+  std::vector<int> match(n, -1);
+  std::vector<DT> u(n, 0);
+  std::vector<DT> v(n, 0);
+  for (int k = 0; k < n; ++k) {
     std::vector<int> previous(n, -1);
-    std::vector<bool> Z(n + 1, false);
-    while (match.at(cur_b) != -1) {
-      Z.at(cur_b) = true;
-      const int a = match.at(cur_b);
-      DT delta = std::numeric_limits<DT>::max();
-      int next_b = - 1;
+    std::vector<bool> scanned(n, false);
+    std::vector<DT> dist(n, std::numeric_limits<DT>::max());
+    int i = k;
+    int selected_col;
 
-      for (int b = 0; b < n; ++b) {
-        if(!Z.at(b)) {
-          if (graph.at(a).at(b) - ya.at(a) - yb.at(b) < dist.at(b)) {
-            dist.at(b) = graph.at(a).at(b) - ya.at(a) - yb.at(b);
-            previous.at(b) = cur_b;
-          }
-          if(dist.at(b) < delta) {
-            delta = dist.at(b);
-            next_b = b;
+    while (i != -1) {
+      DT dmin = std::numeric_limits<DT>::max();
+      int next_row = - 1;
+      scanned.at(i) = true;
+      bool found = false;
+
+      for (int j = 0; j < n; ++j) {
+        if (graph.at(i).at(j) - u.at(i) - v.at(j) < dist.at(j)) {
+          dist.at(j) = graph.at(i).at(j) - u.at(i) - v.at(j);
+          previous.at(j) = i;
+          if (dist.at(j) == 0) {
+            selected_col = j;
+            found = true;
           }
         }
       }
-      for (int b = 0; b < n; ++b) {
-        if (Z.at(b)) {
-          yb.at(b) -= delta;
-          ya.at(match.at(b)) += delta;
-        } else {
-          dist.at(b) -= delta;
+      if (!found) {
+        for (int l = 0; l < n; ++l) {
+          if (dist.at(l) > 0 && dist.at(l) < dmin) {
+            dmin = dist.at(l);
+            if (match.at(l) == -1 || !scanned.at(match.at(l))) {
+              selected_col = l;
+            }
+          }
+        }
+        // Update
+        for (int row = 0; row < k; ++row) {
+          if (scanned.at(row)) {
+            u.at(row) += dmin;
+          }
+        }
+        for (int col = 0; col < n; ++col) {
+          if (std::abs(dist.at(col)) < 1e-12) {
+            v.at(col) -= dmin;
+          } else {
+            dist.at(col) -= dmin;
+          }
         }
       }
-      cur_b = next_b;
+      for (int col = 0; col < n; ++col) {
+        if (std::abs(dist.at(col)) < 1e-12) {
+          if (match.at(col) == -1) {
+            selected_col = col;
+            i = match.at(col);
+            break;
+          } else if (!scanned.at(match.at(col))) {
+            i = match.at(col);
+          }
+        }
+      }
     }
-    for (;cur_b != n;) {
-      match.at(cur_b) = match.at(previous.at(cur_b));
-      cur_b = previous.at(cur_b);
+
+
+    while (selected_col != n) {
+      int row = previous.at(selected_col);
+      int next_col = std::find(match.begin(), match.end(), row) - match.begin();
+      match.at(selected_col) = row;
+      selected_col = next_col;
     }
   }
-  match.erase(match.end());
   return match;
 }
+
+#endif
