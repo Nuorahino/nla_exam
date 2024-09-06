@@ -19,8 +19,8 @@ class EigenWrapper {
     Scalar operator()(const unsigned i, const unsigned j) const { return Mat(i, j); }
 
 
-  private:
     Matrix Mat;
+  private:
     int row_offset;
     int col_offset;
 };

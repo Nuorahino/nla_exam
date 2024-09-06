@@ -55,7 +55,7 @@ class tridiagonal_matrix2{
       assert(false);
     }
 
-    unsigned size() const {
+    unsigned rows() const {
       return diag.size();
     }
 };
@@ -107,7 +107,7 @@ class tridiagonal_matrix_nested{
       assert(false);
     }
 
-    unsigned size() const {
+    unsigned rows() const {
       return data.size();
     }
 };
@@ -157,7 +157,7 @@ class tridiagonal_matrix{
       assert(false);
     }
 
-    unsigned size() const {
+    unsigned rows() const {
       return data.size() / 2;
     }
 };

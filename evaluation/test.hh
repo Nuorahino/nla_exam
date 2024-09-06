@@ -3,6 +3,7 @@
 
 #ifdef LAPACK
 #define VERSION "LAPACK"
+#include "../lapack/lapack_interface_impl.hh"
 #endif
 #ifdef EIGEN
 #define VERSION "EIGEN"
@@ -19,6 +20,10 @@
 #ifdef WRAPPED
 #define VERSION "wrapped"
 #endif
+#ifdef BLAZE
+#define VERSION "blaze"
+#include <blaze/Math.h>
+#endif
 
 #include <fstream>
 #include <vector>
@@ -28,12 +33,10 @@
 
 #include <eigen3/Eigen/Dense>
 
-//#include "helpfunctions/helpfunctions.hh"
 #include "helpfunctions.hh"
 #include "qr.hh"
 #include "createMatrix.hh"
 #include "../tests/helpfunctions_for_test.hh"
-#include "../lapack/lapack_interface_impl.hh"
 #include "../matrix/matrix_classes.hh"
 
 /*
@@ -155,6 +158,14 @@ void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_ei
 #endif
 #ifdef WRAPPED
   EigenWrapper<Eigen::MatrixXd> t_mat{M.real()};
+#endif
+#ifdef BLAZE
+  blaze::DynamicMatrix<double> t_mat(M.rows(), M.rows());
+  for(int i = 0; i < M.rows(); ++i) {
+    for(int j = 0; j < M.rows(); ++j) {
+      t_mat(i, j) = M(i, j);
+    }
+  }
 #endif
 
 #ifdef EIGEN

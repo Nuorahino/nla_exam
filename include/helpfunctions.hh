@@ -15,6 +15,8 @@
 #include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/Sparse>
 
+#include "sfinae.hh"
+
 // TODO (Georg): add a namespace around this file
 // TODO (Georg): Maybe rename to is_std_complex?
 template <typename>

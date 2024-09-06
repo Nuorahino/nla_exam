@@ -114,6 +114,32 @@ TEMPLATE_TEST_CASE(
 }
 
 
+TEMPLATE_TEST_CASE(
+    "Givens Parameter combined with applying the left givens rotation sets"
+    "the entry to 0",
+    "[givens][givens_parameter]", float, double, std::complex<float>,
+    std::complex<double>) {
+  int n = GENERATE(take(5, random<int>(3, 10)));
+  Eigen::Matrix<TestType, -1, -1> A = Eigen::Matrix<TestType, -1, -1>::Random(n, n);
+  std::vector<TestType> param = nla_exam::GetGivensEntries(A(0, 0), A(1, 0));
+  nla_exam::ApplyGivensLeft(A({0, 1}, Eigen::all), param.at(0), param.at(1), param.at(2));
+  REQUIRE_THAT(std::abs(A(1, 0)), Catch::Matchers::WithinAbs(0.0, tol<TestType>()));
+}
+
+
+TEMPLATE_TEST_CASE(
+    "Givens Parameter combined with applying the right givens rotation sets "
+    "the entry to 0",
+    "[givens][givens_parameter]", float, double, std::complex<float>,
+    std::complex<double>) {
+  int n = GENERATE(take(5, random<int>(3, 10)));
+  Eigen::Matrix<TestType, -1, -1> A = Eigen::Matrix<TestType, -1, -1>::Random(n, n);
+  std::vector<TestType> param = nla_exam::GetGivensEntries(A(0, 0), A(0, 1));
+  nla_exam::ApplyGivensRight(A(Eigen::all, {0, 1}), param.at(0), param.at(2), param.at(1));
+  REQUIRE_THAT(std::abs(A(0, 1)), Catch::Matchers::WithinAbs(0.0, tol<TestType>()));
+}
+
+
 TEMPLATE_TEST_CASE("Left Givens Rotation has same result as LAPACK",
                    "[givens][apply_givens]", float, double, std::complex<float>,
                    std::complex<double>) {
@@ -128,7 +154,6 @@ TEMPLATE_TEST_CASE("Left Givens Rotation has same result as LAPACK",
   nla_exam::ApplyGivensLeft(A({i, j}, Eigen::all), param.at(0), param.at(1), param.at(2));
   REQUIRE_THAT((A - res).norm(), Catch::Matchers::WithinAbs(0.0, tol<TestType>()));
 }
-
 
 TEMPLATE_TEST_CASE("Right Givens Rotation has same result as LAPACK",
                    "[givens][apply_givens]", float, double, std::complex<float>,

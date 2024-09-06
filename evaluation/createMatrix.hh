@@ -7,7 +7,7 @@
 #include <eigen3/Eigen/Dense>
 
 #include "helpfunctions.hh"
-#include "../lapack/lapack_interface_impl.hh"
+//#include "../lapack/lapack_interface_impl.hh"
 
 template<bool Complex>
 struct IntType {typedef std::complex<int> type;};

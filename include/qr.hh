@@ -22,37 +22,6 @@
 #include "symm_qr.hh"
 
 namespace nla_exam {
-/* Deflates a Matrix converging to a diagonal matrix
-// * Parameter:
-// * - a_matrix: Matrix to deflate
-// * - a_begin: Index of fhe block that is solved currently
-// * - a_end: Index of fhe End that is solved currently
-// * - ak_tol: Tolerance for considering a value 0
-// * Return: "true" if the block is fully solved, "false" otherwise
-// */
-//template <class Derived>
-//int DeflateDiagonal(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin,
-//                      int &a_end, const double ak_tol = 1e-12) {
-//  int state = 2;
-//  for (int i = a_end; i > a_begin; --i) {
-//    if (std::abs(a_matrix(i, i - 1)) <= (ak_tol * (std::abs(a_matrix(i, i)) +
-//          std::abs(a_matrix(i - 1, i - 1))))) {
-//      const_cast<Eigen::MatrixBase<Derived> &>(a_matrix)(i, i - 1) = 0;
-//      if (state < 2) {
-//        a_begin = i;
-//        return 1;                                                             // Subblock to solve found
-//      }
-//    } else if (state == 2) {                                                           // Start of the block found
-//      if (i == a_end) {
-//        state = 0;
-//      } else {
-//        a_end = i;
-//        state = 1;
-//      }
-//    }
-//  }
-//  return state;
-//}
 /* Compute the Householder Vector
  * Parameter:
  * - ak_x: Vector to transform to multiple of e1
@@ -62,7 +31,7 @@ namespace nla_exam {
 template <class Derived, class T = typename Derived::Scalar>
 Eigen::Vector<T, -1>
 GetHouseholderVector(const Eigen::MatrixBase<Derived> &ak_x) {
-  EASY_FUNCTION(profiler::colors::Red);
+  //EASY_FUNCTION(profiler::colors::Red);
   Eigen::Vector<T, -1> w = ak_x;
   int64_t n = w.rows();
   T t = w(Eigen::lastN(n - 1)).squaredNorm();
@@ -95,7 +64,7 @@ template <class Derived, class Derived2>
 void
 ApplyHouseholderRight(const Eigen::MatrixBase<Derived2> &ak_w,
                       const Eigen::MatrixBase<Derived> &a_matrix) {
-  EASY_FUNCTION(profiler::colors::Red);
+  //EASY_FUNCTION(profiler::colors::Red);
   typedef typename Derived::Scalar T;
   typedef Eigen::MatrixBase<Derived> MatrixType;
   MatrixType &matrix = const_cast<MatrixType &>(a_matrix);  // Const cast needed for eigen
@@ -114,7 +83,7 @@ void
 ApplyHouseholderRight(const Eigen::MatrixBase<Derived2> &ak_w,
                       const Eigen::MatrixBase<Derived> &a_matrix,
                       const typename Derived::Scalar beta) {
-  EASY_FUNCTION(profiler::colors::Red);
+  //EASY_FUNCTION(profiler::colors::Red);
   typedef typename Derived::Scalar T;
   typedef Eigen::MatrixBase<Derived> MatrixType;
   MatrixType &matrix = const_cast<MatrixType &>(a_matrix);  // Const cast needed for eigen
@@ -138,7 +107,7 @@ template <class Derived, class Derived2>
 void
 ApplyHouseholderLeft(const Eigen::MatrixBase<Derived2> &ak_w,
                      const Eigen::MatrixBase<Derived> &a_matrix) {
-  EASY_FUNCTION(profiler::colors::Red);
+  //EASY_FUNCTION(profiler::colors::Red);
   typedef typename Derived::Scalar T;
   typedef Eigen::MatrixBase<Derived> MatrixType;
   MatrixType &matrix = const_cast<MatrixType &>(a_matrix);  // Const cast needed for eigen
@@ -157,7 +126,7 @@ void
 ApplyHouseholderLeft(const Eigen::MatrixBase<Derived2> &ak_w,
                      const Eigen::MatrixBase<Derived> &a_matrix,
                      const typename Derived::Scalar beta) {
-  EASY_FUNCTION(profiler::colors::Red);
+  //EASY_FUNCTION(profiler::colors::Red);
   typedef typename Derived::Scalar T;
   typedef Eigen::MatrixBase<Derived> MatrixType;
   MatrixType &matrix = const_cast<MatrixType &>(a_matrix);  // Const cast needed for eigen
@@ -181,7 +150,7 @@ template <class Derived>
 void
 HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
                          const bool ak_is_hermitian = false) {
-  EASY_FUNCTION(profiler::colors::Red);
+  //EASY_FUNCTION(profiler::colors::Red);
   typedef Eigen::MatrixBase<Derived> MatrixType;
   MatrixType &matrix = const_cast<MatrixType &>(a_matrix);
   int64_t n = a_matrix.rows();
@@ -220,7 +189,7 @@ HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
 template <class DataType, bool is_symmetric, class Derived>
 inline std::enable_if_t<!is_symmetric && std::is_arithmetic<DataType>::value, DataType>
 WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
-  EASY_FUNCTION(profiler::colors::Red);
+  //EASY_FUNCTION(profiler::colors::Red);
   DataType d = (ak_matrix(0, 0) - ak_matrix(1, 1)) / static_cast<DataType>(2.0);
   // TODO (Georg): Find a way to compute this which avoids over and underflow
   if (d >= 0) {
@@ -234,7 +203,7 @@ WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
 template <class DataType, bool is_symmetric, class Derived>
 std::enable_if_t<IsComplex<DataType>(), DataType> inline
 WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
-  EASY_FUNCTION(profiler::colors::Red);
+  //EASY_FUNCTION(profiler::colors::Red);
   DataType trace = ak_matrix.trace();
   // TODO (Georg): Find a way to compute this which avoids over and underflow
   DataType tmp =
@@ -263,7 +232,7 @@ template <class DataType, class Derived>
 std::enable_if_t<std::is_arithmetic<DataType>::value, void>
 ApplyGivensLeft(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c,
                 const DataType ak_s) {
-  EASY_FUNCTION(profiler::colors::Red);
+  //EASY_FUNCTION(profiler::colors::Red);
   Eigen::MatrixBase<Derived> &matrix = const_cast<Eigen::MatrixBase<Derived> &>(a_matrix);
   for (int64_t i = 0; i < a_matrix.cols(); ++i) {
     typename Derived::Scalar tmp = matrix(0, i);
@@ -285,7 +254,7 @@ template <class DataType, class Derived>
 std::enable_if_t<std::is_arithmetic<DataType>::value, void>
 ApplyGivensRight(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c,
                  const DataType ak_s) {
-  EASY_FUNCTION(profiler::colors::Red);
+  //EASY_FUNCTION(profiler::colors::Red);
   Eigen::MatrixBase<Derived> &matrix = const_cast<Eigen::MatrixBase<Derived> &>(a_matrix);
   for (int64_t i = 0; i < a_matrix.rows(); ++i) {
     typename Derived::Scalar tmp = matrix(i, 0);
@@ -307,7 +276,7 @@ template <class DataType, class Derived>
 void
 ApplyGivensLeft(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c,
                 const DataType ak_s, const DataType ak_sconj) {
-  EASY_FUNCTION(profiler::colors::Red);
+  //EASY_FUNCTION(profiler::colors::Red);
   Eigen::MatrixBase<Derived> &matrix = const_cast<Eigen::MatrixBase<Derived> &>(a_matrix);
   for (int64_t i = 0; i < a_matrix.cols(); ++i) {
     typename Derived::Scalar tmp = matrix(0, i);
@@ -329,7 +298,7 @@ template <class DataType, class Derived>
 void
 ApplyGivensRight(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c,
                  const DataType ak_s, const DataType ak_sconj) {
-  EASY_FUNCTION(profiler::colors::Red);
+  //EASY_FUNCTION(profiler::colors::Red);
   Eigen::MatrixBase<Derived> &matrix = const_cast<Eigen::MatrixBase<Derived> &>(a_matrix);
   for (int64_t i = 0; i < a_matrix.rows(); ++i) {
     typename Derived::Scalar tmp = matrix(i, 0);
@@ -349,7 +318,7 @@ ApplyGivensRight(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c
 template <class DataType>
 inline std::enable_if_t<IsComplex<DataType>(), std::vector<DataType>>
 GetGivensEntries(const DataType &ak_a, const DataType &ak_b) {
-  EASY_FUNCTION(profiler::colors::Red);
+  //EASY_FUNCTION(profiler::colors::Red);
   typedef typename DataType::value_type real;
   std::vector<DataType> res(3);
   real absa = std::abs(ak_a);
@@ -396,7 +365,7 @@ template <class DataType, bool is_symmetric, typename Derived>
 std::enable_if_t<!std::is_arithmetic<DataType>::value || !is_symmetric, void>
 ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
                const bool ak_exceptional_shift) {
-  EASY_FUNCTION(profiler::colors::Red);
+  //EASY_FUNCTION(profiler::colors::Red);
   Eigen::MatrixBase<Derived> &matrix = const_cast<Eigen::MatrixBase<Derived> &>(a_matrix);
   int n = a_matrix.rows();
   DataType shift;
@@ -486,7 +455,7 @@ template <class Derived>
 typename std::enable_if_t<std::is_arithmetic<typename Derived::Scalar>::value,
                           std::vector<typename Derived::Scalar>>
 DoubleShiftParameter(const Eigen::MatrixBase<Derived> &ak_matrix) {
-  EASY_FUNCTION(profiler::colors::Red);
+  //EASY_FUNCTION(profiler::colors::Red);
   typedef typename Derived::Scalar DataType;
   std::vector<DataType> res(2);
   res.at(0) = -ak_matrix.trace();
@@ -522,7 +491,7 @@ template <class Derived>
 void
 DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
                   const bool ak_exceptional_shift) {
-  EASY_FUNCTION(profiler::colors::Red);
+  //EASY_FUNCTION(profiler::colors::Red);
   typedef Eigen::MatrixBase<Derived> MatrixType;
   typedef Eigen::Matrix<typename Derived::Scalar, -1, -1> Matrix;
   MatrixType &matrix = const_cast<MatrixType &>(a_matrix);
