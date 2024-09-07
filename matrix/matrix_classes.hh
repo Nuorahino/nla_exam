@@ -118,6 +118,7 @@ class tridiagonal_matrix{
 
   public:
     typedef DT Scalar;
+    typedef DT ElementType;
 
     tridiagonal_matrix() = default;
 

@@ -24,6 +24,10 @@
 #define VERSION "blaze"
 #include <blaze/Math.h>
 #endif
+#ifdef ARMADILLO
+#define VERSION "armadillo"
+#include <armadillo>
+#endif
 
 #include <fstream>
 #include <vector>
@@ -161,6 +165,14 @@ void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_ei
 #endif
 #ifdef BLAZE
   blaze::DynamicMatrix<double> t_mat(M.rows(), M.rows());
+  for(int i = 0; i < M.rows(); ++i) {
+    for(int j = 0; j < M.rows(); ++j) {
+      t_mat(i, j) = M(i, j);
+    }
+  }
+#endif
+#ifdef ARMADILLO
+  arma::Mat<double> mat(M.rows(), M.rows());
   for(int i = 0; i < M.rows(); ++i) {
     for(int j = 0; j < M.rows(); ++j) {
       t_mat(i, j) = M(i, j);
