@@ -12,7 +12,8 @@
 // Maybe use std::optional instead
 int main(int argc, char** argv) {
   //EASY_PROFILER_ENABLE;
-  std::cout << "Project Version: " << VERSION << std::endl;
+  //std::cout << "Project Version: " << VERSION << std::endl;
+  std::cout << "Start Various Versions: " << std::endl;
 
   std::string filename = GetFileName();
   std::string basedir = "/home/georg/uni/12_sem24/ba2/";

@@ -1,31 +1,34 @@
 #ifndef TEST_HH_
 #define TEST_HH_
 
-#ifdef LAPACK
-#define VERSION "LAPACK"
-#include "../lapack/lapack_interface_impl.hh"
-#endif
-#ifdef EIGEN
-#define VERSION "EIGEN"
-#endif
-#ifdef TWO_VEC
-#define VERSION "elementwise2"
-#endif
-#ifdef ONE_VEC
-#define VERSION "elementwise1"
-#endif
-#ifdef NESTED
-#define VERSION "nested"
-#endif
-#ifdef WRAPPED
-#define VERSION "wrapped"
-#endif
+#include "sfinae.hh"
+#include <string>
+
+//#ifdef LAPACK
+//#define VERSION "LAPACK"
+//#include "../lapack/lapack_interface_impl.hh"
+//#endif
+//#ifdef EIGEN
+//#define VERSION "EIGEN"
+//#endif
+//#ifdef TWO_VEC
+//#define VERSION "elementwise2"
+//#endif
+//#ifdef ONE_VEC
+//#define VERSION "elementwise1"
+//#endif
+//#ifdef NESTED
+//#define VERSION "nested"
+//#endif
+//#ifdef WRAPPED
+//#define VERSION "wrapped"
+//#endif
 #ifdef BLAZE
-#define VERSION "blaze"
+//#define VERSION "blaze"
 #include <blaze/Math.h>
 #endif
 #ifdef ARMADILLO
-#define VERSION "armadillo"
+//#define VERSION "armadillo"
 #include <armadillo>
 #endif
 
@@ -101,7 +104,7 @@ std::string GetFileName();
  * - ak_runtime: duration of the method
  * Return: summary of the information
  */
-std::string GetVariantString(const int ak_size , const bool ak_is_hermitian,
+std::string GetVariantString(const std::string ak_variant, const int ak_size , const bool ak_is_hermitian,
     const bool ak_is_complex, const int ak_seed, const double ak_tol,
     const std::chrono::duration<double>& ak_runtime);
 
@@ -125,6 +128,29 @@ std::vector<double> GetApproximationError(
   return res;
 }
 
+
+template<class MatrixType, class VectorType>
+void RunTestNew(std::ofstream& a_summary_file, MatrixType Matrix,
+    const VectorType res, const std::string ak_variant,
+    const int ak_size, const int ak_seed, const bool ak_is_hermitian,
+    const double ak_tol = 1e-12) {
+  std::chrono::duration<double> runtime;
+  VectorType estimate;
+  if (ak_is_hermitian) {
+    auto start = std::chrono::steady_clock::now();
+    estimate = nla_exam::QrMethod<true>(Matrix, ak_tol);
+    auto end = std::chrono::steady_clock::now();
+    runtime = (end - start);
+  } else {
+    //estimate = nla_exam::QrMethod<false>(t_mat, ak_tol);
+  }
+
+  std::string prefix = GetVariantString(ak_variant, ak_size, ak_is_hermitian,
+      IsComplex<typename ElementType<MatrixType>::type>(), ak_seed, ak_tol, runtime);
+  std::vector<double> error = GetApproximationError(estimate, res);
+  PrintSummary(a_summary_file, prefix, error);
+}
+
 /*
  * Run a test for an eigenvalue estimator
  * Parameter:
@@ -146,86 +172,90 @@ void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_ei
 
   nla_exam::HessenbergTransformation<>(M, ak_is_hermitian);
 
-  auto start = std::chrono::steady_clock::now();
-  std::vector<C> estimate;
-#ifdef LAPACK
-  tridiagonal_matrix2 t_mat{M.real()};
-#endif
 #ifdef TWO_VEC
-  tridiagonal_matrix2 t_mat{M.real()};
+  tridiagonal_matrix2 twovec_mat{M.real()};
+  RunTestNew(a_summary_file, twovec_mat, res, "elementwise 2", ak_size, ak_seed, ak_is_hermitian, ak_tol);
 #endif
 #ifdef ONE_VEC
-  tridiagonal_matrix t_mat{M.real()};
+  tridiagonal_matrix onevec_mat{M.real()};
+  RunTestNew(a_summary_file, onevec_mat, res, "elementwise 1", ak_size, ak_seed, ak_is_hermitian, ak_tol);
 #endif
 #ifdef NESTED
-  tridiagonal_matrix_nested t_mat{M.real()};
+  tridiagonal_matrix_nested nested_mat{M.real()};
+  RunTestNew(a_summary_file, nested_mat, res, "nested", ak_size, ak_seed, ak_is_hermitian, ak_tol);
 #endif
 #ifdef WRAPPED
-  EigenWrapper<Eigen::MatrixXd> t_mat{M.real()};
+  EigenWrapper<Eigen::MatrixXd> wrapped_mat{M.real()};
+  RunTestNew(a_summary_file, wrapped_mat, res, "wrapped", ak_size, ak_seed, ak_is_hermitian, ak_tol);
 #endif
 #ifdef BLAZE
-  blaze::DynamicMatrix<double> t_mat(M.rows(), M.rows());
+  blaze::DynamicMatrix<double> blaze_mat(M.rows(), M.rows());
   for(int i = 0; i < M.rows(); ++i) {
     for(int j = 0; j < M.rows(); ++j) {
-      t_mat(i, j) = M(i, j);
+      blaze_mat(i, j) = M(i, j);
     }
   }
+  RunTestNew(a_summary_file, blaze_mat, res, "blaze", ak_size, ak_seed, ak_is_hermitian, ak_tol);
 #endif
 #ifdef ARMADILLO
-  arma::Mat<double> t_mat(M.rows(), M.rows());
+  arma::Mat<double> arma_mat(M.rows(), M.rows());
   for(int i = 0; i < M.rows(); ++i) {
     for(int j = 0; j < M.rows(); ++j) {
-      t_mat(i, j) = M(i, j);
+      arma_mat(i, j) = M(i, j);
     }
   }
+  RunTestNew(a_summary_file, arma_mat, res, "armadillo", ak_size, ak_seed, ak_is_hermitian, ak_tol);
 #endif
 
-#ifdef EIGEN
- Eigen::VectorXcd test;
-#endif
-  if (ak_is_hermitian) {
-#ifdef LAPACK
-  estimate = CalculateTridiagonalEigenvalues(t_mat.diag, t_mat.sdiag);
-#else
-#ifdef EIGEN
-    Eigen::SelfAdjointEigenSolver<MatrixType> es(M, false);
-    test = es.eigenvalues();
-    if(es.info()) std::cout << "failed" << std::endl;
-    estimate = ConvertToVec(test);
-#else
-    estimate = nla_exam::QrMethod<true>(t_mat, ak_tol);
-#endif
-#endif
-  } else {
-#ifdef EIGEN
-    if constexpr (IsComplex<typename MatrixType::Scalar>()) {
-      Eigen::ComplexEigenSolver<MatrixType> es(M, false);
-      test = es.eigenvalues();
-      if(es.info()) std::cout << "failed" << std::endl;
-    } else {
-      Eigen::EigenSolver<MatrixType> es(M, false);
-      test = es.eigenvalues();
-      if(es.info()) std::cout << "failed" << std::endl;
-    }
-    estimate = ConvertToVec(test);
-#else
-    //estimate = nla_exam::QrMethod<false>(M, ak_tol);
-#endif
-  }
 
-  auto end = std::chrono::steady_clock::now();
-  std::chrono::duration<double> runtime = (end - start);
+//  auto start = std::chrono::steady_clock::now();
+//  std::vector<C> estimate;
+//#ifdef LAPACK
+//  tridiagonal_matrix2 t_mat{M.real()};
+//#endif
 
-  std::sort(estimate.begin(), estimate.end(), [](C& a, C& b) {
-      return LesserEv(a, b);});
-
-  std::string prefix = GetVariantString(ak_size, ak_is_hermitian,
-      IsComplex<typename MatrixType::Scalar>(), ak_seed, ak_tol, runtime);
-  std::vector<double> error = GetApproximationError(estimate, res);
-  PrintSummary(a_summary_file, prefix, error);
-  //PrintEigenvalues(a_eigenvalue_file, prefix, estimate, error);
+//  if (ak_is_hermitian) {
+//#ifdef LAPACK
+//  estimate = CalculateTridiagonalEigenvalues(t_mat.diag, t_mat.sdiag);
+//#else
+//#ifdef EIGEN
+//    Eigen::SelfAdjointEigenSolver<MatrixType> es(M, false);
+//    test = es.eigenvalues();
+//    if(es.info()) std::cout << "failed" << std::endl;
+//    estimate = ConvertToVec(test);
+//#else
+//    estimate = nla_exam::QrMethod<true>(t_mat, ak_tol);
+//#endif
+//#endif
+//  } else {
+//#ifdef EIGEN
+//    if constexpr (IsComplex<typename MatrixType::Scalar>()) {
+//      Eigen::ComplexEigenSolver<MatrixType> es(M, false);
+//      test = es.eigenvalues();
+//      if(es.info()) std::cout << "failed" << std::endl;
+//    } else {
+//      Eigen::EigenSolver<MatrixType> es(M, false);
+//      test = es.eigenvalues();
+//      if(es.info()) std::cout << "failed" << std::endl;
+//    }
+//    estimate = ConvertToVec(test);
+//#else
+//    //estimate = nla_exam::QrMethod<false>(M, ak_tol);
+//#endif
+//  }
+//
+//  auto end = std::chrono::steady_clock::now();
+//  std::chrono::duration<double> runtime = (end - start);
+//
+//  std::sort(estimate.begin(), estimate.end(), [](C& a, C& b) {
+//      return LesserEv(a, b);});
+//
+//  std::string prefix = GetVariantString(ak_size, ak_is_hermitian,
+//      IsComplex<typename MatrixType::Scalar>(), ak_seed, ak_tol, runtime);
+//  std::vector<double> error = GetApproximationError(estimate, res);
+//  PrintSummary(a_summary_file, prefix, error);
+//  //PrintEigenvalues(a_eigenvalue_file, prefix, estimate, error);
 
 }
-
 
 #endif
