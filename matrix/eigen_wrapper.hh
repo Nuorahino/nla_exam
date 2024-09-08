@@ -8,7 +8,7 @@ class EigenWrapper {
 
     explicit EigenWrapper(const Matrix &A) : Mat(A) {};
 
-    int size() const { return Mat.rows(); }
+    std::size_t rows() const { return Mat.rows(); }
 
     int trace() const { return Mat.trace(); }
 
@@ -20,8 +20,5 @@ class EigenWrapper {
 
 
     Matrix Mat;
-  private:
-    int row_offset;
-    int col_offset;
 };
 #endif
