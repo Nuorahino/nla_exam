@@ -55,7 +55,7 @@ class tridiagonal_matrix2{
       assert(false);
     }
 
-    unsigned rows() const {
+    std::size_t rows() const {
       return diag.size();
     }
 };
@@ -107,7 +107,7 @@ class tridiagonal_matrix_nested{
       assert(false);
     }
 
-    unsigned rows() const {
+    std::size_t rows() const {
       return data.size();
     }
 };
@@ -117,12 +117,13 @@ class tridiagonal_matrix{
     std::vector<DT> data;
 
   public:
-    typedef DT Scalar;
     typedef DT ElementType;
+    std::size_t n_rows;
 
     tridiagonal_matrix() = default;
 
     explicit tridiagonal_matrix(const Eigen::Matrix<DT, -1, -1> &A) {
+      n_rows = A.rows();
       data.resize(2 * A.rows());
       for(int i = 0; i < A.rows() - 1; ++i) {
         //data.push_back({A(i,i), A(i + 1, i)});
@@ -158,9 +159,9 @@ class tridiagonal_matrix{
       assert(false);
     }
 
-    unsigned rows() const {
-      return data.size() / 2;
-    }
+    //std::size_t rows() const {
+    //  return data.size() / 2;
+    //}
 };
 
 

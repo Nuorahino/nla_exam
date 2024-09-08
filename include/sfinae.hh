@@ -3,57 +3,16 @@
 
 #include <type_traits>
 
-//template< typename... Ts >
-//using Void_t = void;
-//
-//template< typename, typename = void > struct UnderlyingElementHelper;
-//
-//template< typename T, typename >
-//struct UnderlyingElementHelper
-//{
-//   using Type = T;
-//};
-//
-//template< typename T >
-//struct UnderlyingElementHelper< T, Void_t< typename T::ElementType > >
-//{
-//   using Type = typename T::ElementType;
-//};
-//
-//template< typename T >
-//struct UnderlyingElementHelper< T, Void_t< typename T::Scalar > >
-//{
-//   using Type = typename T::Scalar;
-//};
-
-template <typename T>
-using SFINAE_helper = void;
-
 typedef char SFINAE_yes;
 struct SFINAE_no {char _[2];};
 
-template <typename, typename = void>
-struct ElementType;
-
 template <typename T>
-struct ElementType<T, SFINAE_helper<typename T::ElementType> > {
-  using Type = typename T::ElementType;
-};
-
-template <typename T>
-struct ElementType<T, SFINAE_helper<std::enable_if_t<
-                          !std::is_same<SFINAE_helper<typename T::ElementType>, void>(),
-                          typename T::Scalar> > > {
-  using Type = typename T::Scalar;
-};
-
-template <typename T>
-class HasRowsFunction {
-  template <typename U, std::size_t (U::*)() const>
+class HasElementType {
+  template <typename U, typename>
     class HelperClass{};
 
   template <typename X>
-    static char Test(HelperClass<X, &X::rows> *);
+    static SFINAE_yes Test(HelperClass<X,typename X::ElementType>*);
 
   template <typename X>
     static SFINAE_no Test(...);
@@ -62,27 +21,111 @@ class HasRowsFunction {
   enum { value = sizeof(Test<T>(0)) == sizeof(SFINAE_yes)};
 };
 
-template <typename, typename = void>
-struct Hasn_rows {
-  bool value = false;
+template <typename T>
+class HasScalar {
+  template <typename U, typename>
+    class HelperClass{};
+
+  template <typename X>
+    static SFINAE_yes Test(HelperClass<X,typename X::Scalar>*);
+
+  template <typename X>
+    static SFINAE_no Test(...);
+
+  public:
+  enum { value = sizeof(Test<T>(0)) == sizeof(SFINAE_yes)};
 };
 
 template <typename T>
-struct Hasn_rows<T, SFINAE_helper<typename T::n_rows> > {
-  bool value = true;
+class Haselem_type {
+  template <typename U, typename>
+    class HelperClass{};
+
+  template <typename X>
+    static SFINAE_yes Test(HelperClass<X,typename X::elem_type>*);
+
+  template <typename X>
+    static SFINAE_no Test(...);
+
+  public:
+  enum { value = sizeof(Test<T>(0)) == sizeof(SFINAE_yes)};
 };
 
+
+
+template <typename, typename = void>
+struct ElementType {};
+
+template <typename T>
+struct ElementType<T, std::enable_if_t<HasElementType<T>::value, void>> {
+  using type = typename T::ElementType;
+};
+
+template <typename T>
+struct ElementType<T, std::enable_if_t<!HasElementType<T>::value && HasScalar<T>::value, void>> {
+  using type = typename T::Scalar;
+};
+
+template <typename T>
+struct ElementType<T, std::enable_if_t<!HasElementType<T>::value && !HasScalar<T>::value && Haselem_type<T>::value, void>> {
+  using type = typename T::elem_type;
+};
+
+template <typename T>
+class HasRowsFunction {
+  template <typename U, std::size_t (U::*)() const>
+    class HelperClass{};
+
+  template <typename X>
+    static SFINAE_yes Test(HelperClass<X, &X::rows>*);
+
+  template <typename X>
+    static SFINAE_no Test(...);
+
+  public:
+  enum { value = sizeof(Test<T>(0)) == sizeof(SFINAE_yes)};
+};
+
+template <typename T>
+class Hasn_rows {
+  template <typename U, typename>
+    class HelperClass{};
+
+  template <typename X>
+    static SFINAE_yes Test(HelperClass<X, std::enable_if_t<std::is_same<decltype(std::declval<X>().n_rows), std::size_t>::value|| std::is_same<decltype(std::declval<X>().n_rows), const unsigned long long>::value, void>>*);
+
+//  template <typename X>
+//    static SFINAE_yes Test(HelperClass<X, std::enable_if_t<std::is_same<decltype(std::declval<X>().n_rows), unsigned>::value, void>>*);
+
+  template <typename X>
+    static SFINAE_no Test(...);
+
+  public:
+  enum { value = sizeof(Test<T>(0)) == sizeof(SFINAE_yes)};
+};
 
 template <typename T>
 std::enable_if_t<HasRowsFunction<T>::value ,std::size_t>
-  rows(T &Mat) {
+  rows(const T &Mat) {
     return Mat.rows();
 }
 
 template <typename T>
 std::enable_if_t<!HasRowsFunction<T>::value && Hasn_rows<T>::value ,std::size_t>
-  rows(T &Mat) {
+  rows(const T &Mat) {
     return Mat.n_rows;
 };
+
+//template <typename T>
+//std::enable_if_t<HasRowsFunction<T>::value ,std::size_t>
+//  rows(T &Mat) {
+//    return Mat.rows();
+//}
+//
+//template <typename T>
+//std::enable_if_t<!HasRowsFunction<T>::value && Hasn_rows<T>::value ,std::size_t>
+//  rows(T &Mat) {
+//    return Mat.n_rows;
+//};
 
 #endif

@@ -172,7 +172,7 @@ void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_ei
   }
 #endif
 #ifdef ARMADILLO
-  arma::Mat<double> mat(M.rows(), M.rows());
+  arma::Mat<double> t_mat(M.rows(), M.rows());
   for(int i = 0; i < M.rows(); ++i) {
     for(int j = 0; j < M.rows(); ++j) {
       t_mat(i, j) = M(i, j);

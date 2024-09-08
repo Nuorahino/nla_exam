@@ -16,8 +16,8 @@ template <class DataType, bool is_symmetric, class Matrix>
 inline std::enable_if_t<is_symmetric, std::vector<DataType>>
 CalcEigenvaluesFromSchur(const Matrix &ak_matrix,
                          [[maybe_unused]] const bool ak_matrix_is_diagonal = false) {
-  std::vector<DataType> res(ak_matrix.rows());
-  for (unsigned i = 0; i < ak_matrix.rows(); ++i) {
+  std::vector<DataType> res(rows<Matrix>(ak_matrix));
+  for (unsigned i = 0; i < rows<Matrix>(ak_matrix); ++i) {
     res.at(i) = ak_matrix(i, i);
   }
   return res;
@@ -180,13 +180,13 @@ ImplicitQrStep(Matrix &matrix,
  */
 template <class DataType, bool is_hermitian, class matrix>
 //std::enable_if_t<std::is_arithmetic<typename matrix::Scalar>::value && is_hermitian, std::vector<DataType>>
-std::enable_if_t<std::is_arithmetic<typename ElementType<matrix>::Type>::value && is_hermitian, std::vector<DataType>>
+std::enable_if_t<std::is_arithmetic<typename ElementType<matrix>::type>::value && is_hermitian, std::vector<DataType>>
 QrIterationHessenberg(matrix &a_matrix,
                       const double ak_tol = 1e-12) {
   //EASY_FUNCTION(profiler::colors::Red);
   // generell definitions
   int begin = 0;
-  int end = a_matrix.rows() - 1;
+  int end = rows<matrix>(a_matrix) - 1;
 
   // qr iteration
   while (0 < end) {
@@ -198,7 +198,7 @@ QrIterationHessenberg(matrix &a_matrix,
     } else {
       //EASY_BLOCK("1 step of the qr iteration", profiler::colors::Yellow);
       //ImplicitQrStep<typename matrix::Scalar, is_hermitian, matrix>(a_matrix, begin, end);
-      ImplicitQrStep<typename ElementType<matrix>::Type, is_hermitian, matrix>(a_matrix, begin, end);
+      ImplicitQrStep<typename ElementType<matrix>::type, is_hermitian, matrix>(a_matrix, begin, end);
       //EASY_END_BLOCK;
     }
   }
@@ -208,13 +208,13 @@ QrIterationHessenberg(matrix &a_matrix,
 template <
     bool IsHermitian, typename Matrix,
     //class DataType = typename DoubleType<IsComplex<typename Matrix::Scalar>()>::type,
-    class DataType = typename DoubleType<IsComplex<typename ElementType<Matrix>::Type>()>::type,
+    class DataType = typename DoubleType<IsComplex<typename ElementType<Matrix>::type>()>::type,
     class ComplexDataType = typename EvType<IsComplex<DataType>(), DataType>::type>
 inline std::enable_if_t<IsHermitian, std::vector<ComplexDataType>>
 QrMethod(const Matrix &ak_matrix, const double ak_tol = 1e-12) {
   //assert(ak_matrix.rows() == ak_matrix.cols());
   //static_assert(std::is_convertible<typename Matrix::Scalar, DataType>::value,
-  static_assert(std::is_convertible<typename ElementType<Matrix>::Type, DataType>::value,
+  static_assert(std::is_convertible<typename ElementType<Matrix>::type, DataType>::value,
                 "Matrix Elements must be convertible to DataType");
   Matrix A = ak_matrix;  // Do not change the input matrix
   return QrIterationHessenberg<ComplexDataType, IsHermitian>(A, ak_tol);
