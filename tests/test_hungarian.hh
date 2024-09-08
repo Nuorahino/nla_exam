@@ -25,7 +25,6 @@ std::vector<int> new_hungarian_algorithm(const std::vector<std::vector<DT>> &gra
 
     while (i != -1) {
       DT dmin = std::numeric_limits<DT>::max();
-      int next_row = - 1;
       scanned.at(i) = true;
       bool found = false;
 
