@@ -94,9 +94,6 @@ class Hasn_rows {
   template <typename X>
     static SFINAE_yes Test(HelperClass<X, std::enable_if_t<std::is_same<decltype(std::declval<X>().n_rows), std::size_t>::value|| std::is_same<decltype(std::declval<X>().n_rows), const unsigned long long>::value, void>>*);
 
-//  template <typename X>
-//    static SFINAE_yes Test(HelperClass<X, std::enable_if_t<std::is_same<decltype(std::declval<X>().n_rows), unsigned>::value, void>>*);
-
   template <typename X>
     static SFINAE_no Test(...);
 
@@ -105,27 +102,16 @@ class Hasn_rows {
 };
 
 template <typename T>
-std::enable_if_t<HasRowsFunction<T>::value ,std::size_t>
-  rows(const T &Mat) {
+std::enable_if_t<HasRowsFunction<T>::value, decltype(std::declval<T>().rows())>
+  inline static rows(const T &Mat) {
     return Mat.rows();
 }
 
 template <typename T>
-std::enable_if_t<!HasRowsFunction<T>::value && Hasn_rows<T>::value ,std::size_t>
-  rows(const T &Mat) {
+std::enable_if_t<!HasRowsFunction<T>::value && Hasn_rows<T>::value, decltype(std::declval<T>().n_rows)>
+  inline static rows(const T &Mat) {
     return Mat.n_rows;
 };
 
-//template <typename T>
-//std::enable_if_t<HasRowsFunction<T>::value ,std::size_t>
-//  rows(T &Mat) {
-//    return Mat.rows();
-//}
-//
-//template <typename T>
-//std::enable_if_t<!HasRowsFunction<T>::value && Hasn_rows<T>::value ,std::size_t>
-//  rows(T &Mat) {
-//    return Mat.n_rows;
-//};
 
 #endif
