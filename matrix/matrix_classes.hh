@@ -126,19 +126,17 @@ class tridiagonal_matrix{
       n_rows = A.rows();
       data.resize(2 * A.rows());
       for(int i = 0; i < A.rows() - 1; ++i) {
-        //data.push_back({A(i,i), A(i + 1, i)});
         data.at(2*i) = A(i,i);
         data.at(2*i+1) = A(i+1,i);
       }
       unsigned i = A.rows() - 1;
       data.at(2 * i) = A(i,i);
-        //data.push_back({A(A.rows() - 1,A.rows() - 1), 0});
     }
 
     ~tridiagonal_matrix() = default;
 
     DT& operator() (const unsigned i, const unsigned j) {
-      if (i == j) {
+     if (i == j) {
         return data.at(2*i);
       } else if ( i == j + 1) {
         return data.at(2 * j + 1);
@@ -158,10 +156,6 @@ class tridiagonal_matrix{
       }
       assert(false);
     }
-
-    //std::size_t rows() const {
-    //  return data.size() / 2;
-    //}
 };
 
 
