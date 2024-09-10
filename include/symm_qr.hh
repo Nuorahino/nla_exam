@@ -29,7 +29,8 @@ CalcEigenvaluesFromSchur(const Matrix &ak_matrix,
  * Return: value of the shift parameter
  */
 template <class DataType, bool is_symmetric, class Matrix>
-inline std::enable_if_t<is_symmetric && std::is_arithmetic<DataType>::value, DataType>
+//inline std::enable_if_t<is_symmetric && std::is_arithmetic<DataType>::value, DataType>
+std::enable_if_t<is_symmetric && std::is_arithmetic<DataType>::value, DataType>
 WilkinsonShift(const Matrix &ak_matrix, const int i) {
   DataType d = (ak_matrix(i, i) - ak_matrix(i + 1, i + 1)) / static_cast<DataType>(2.0);
   if (d >= 0) {
@@ -81,8 +82,9 @@ DeflateDiagonal(Matrix &a_matrix, int &a_begin, int &a_end,
  * Return: Vector containing {c, s}
  */
 template <class DataType>
-inline std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
-GetGivensEntries(const DataType ak_a, const DataType ak_b) {
+//inline std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
+std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
+GetGivensEntries(const DataType &ak_a, const DataType &ak_b) {
   std::vector<DataType> res(3);
   if (std::abs(ak_a) <= std::numeric_limits<DataType>::epsilon()) {
     res.at(0) = 0;
@@ -102,8 +104,8 @@ GetGivensEntries(const DataType ak_a, const DataType ak_b) {
 template <bool first, bool last, bool is_symmetric,
   class DataType, class Matrix>
 inline std::enable_if_t<std::is_arithmetic<DataType>::value && is_symmetric, void>
-ApplyGivensTransformation(Matrix &matrix, const DataType ak_c,
-                const DataType ak_s, const int aBegin, DataType &buldge) {
+ApplyGivensTransformation(Matrix &matrix, const DataType &ak_c,
+                const DataType &ak_s, const int aBegin, DataType &buldge) {
     int k = aBegin;
     DataType c = ak_c;
     DataType s = ak_s;
@@ -157,7 +159,7 @@ ImplicitQrStep(Matrix &matrix,
   // buldge chasing
   for (int k = aBegin + 1; k < aEnd - 1; ++k) {
     entries = GetGivensEntries<>(matrix(k, k - 1), buldge);
-    ApplyGivensTransformation<false, false, true, DataType>(matrix, entries.at(0), entries.at(1), k, buldge);
+    ApplyGivensTransformation<false, false, true, DataType>(matrix, entries.at(0), entries.at(1), k, buldge); // this one is not inline
   }
   entries = GetGivensEntries<>(matrix(aEnd - 1, aEnd - 2), buldge);
   ApplyGivensTransformation<false, true, true, DataType>(matrix, entries.at(0), entries.at(1), aEnd - 1, buldge);
