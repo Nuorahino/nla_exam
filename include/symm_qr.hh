@@ -82,7 +82,7 @@ DeflateDiagonal(Matrix &a_matrix, int &a_begin, int &a_end,
  */
 template <class DataType>
 inline std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
-GetGivensEntries(const DataType &ak_a, const DataType &ak_b) {
+GetGivensEntries(const DataType ak_a, const DataType ak_b) {
   std::vector<DataType> res(3);
   if (std::abs(ak_a) <= std::numeric_limits<DataType>::epsilon()) {
     res.at(0) = 0;
