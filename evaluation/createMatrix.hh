@@ -27,6 +27,19 @@ struct IntType<false> {typedef int type;};
 //  return qr.householderQ();
 //}
 
+template<typename Vector>
+void
+CreateStdRandomVector(Vector &vec, const int ak_seed = std::time(nullptr)) {
+  //std::srand(ak_seed);
+  std::mt19937 rng(ak_seed);
+  std::uniform_real_distribution<double> distribution(-1000, 1000);
+  std::size_t n = vec.size();
+  for (int i = 0; i < n; ++i) {
+    vec.at(i) = distribution(rng);
+  }
+  return;
+}
+
 
 template<typename MatrixType>
 MatrixType CreateStdRandom(const int ak_size,
