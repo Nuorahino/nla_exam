@@ -39,6 +39,21 @@ CreateStdRandomVector(Vector &vec, const int ak_seed = std::time(nullptr)) {
   }
   return;
 }
+template<typename Matrix>
+void
+CreateStdRandomTri(Matrix &mat, const int ak_seed = std::time(nullptr)) {
+  //std::srand(ak_seed);
+  std::mt19937 rng(ak_seed);
+  std::uniform_real_distribution<double> distribution(-1000, 1000);
+  std::size_t n = mat.rows();
+  for (int i = 0; i < n - 1; ++i) {
+    mat(i, i) = distribution(rng);
+    mat(i, i + 1) = distribution(rng);
+    mat(i + 1, i) = mat(i, i + 1);
+  }
+  mat(n - 1, n - 1) = distribution(rng);
+  return;
+}
 
 
 template<typename MatrixType>

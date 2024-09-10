@@ -20,11 +20,16 @@ int main(int argc, char** argv) {
   tridiagonal_matrix2<double> mat;
   mat.diag.resize(size);
   mat.sdiag.resize(size - 1);
-  CreateStdRandomVector(mat.diag, seed);
-  CreateStdRandomVector(mat.sdiag, seed);
+//  mat.diag.resize(size);
+//  mat.sdiag.resize(size - 1);
+  CreateStdRandomTri(mat);
+  //CreateStdRandomVector(mat.diag, seed);
+  //CreateStdRandomVector(mat.sdiag, seed);
 
   //auto start = std::chrono::steady_clock::now();
-  std::vector<std::complex<double>> estimate = nla_exam::QrMethod<true>(mat, 1e-12);
+  for (int i = 0; i < 10; ++i) {
+    std::vector<std::complex<double>> estimate = nla_exam::QrMethod<true>(mat, 1e-12);
+  }
   //auto end = std::chrono::steady_clock::now();
   //std::chrono::duration<double> runtime = (end - start);
 
