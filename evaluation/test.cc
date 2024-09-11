@@ -13,7 +13,7 @@
 #include <eigen3/Eigen/Sparse>
 
 #include "helpfunctions.hh"
-#include "qr.hh"
+//#include "qr.hh"
 
 void PrintSummaryHeader(std::ofstream& a_file) {
   a_file << "version, size, hermitian, complex, seed, tol, runtime in s,"

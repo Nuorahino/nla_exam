@@ -1,7 +1,8 @@
 #include <iostream>
 #include <complex>
 
-#include "../../include/qr.hh"
+//#include "../../include/qr.hh"
+#include "../../include/symm_qr.hh"
 #include "../../matrix/matrix_classes.hh"
 #include "../createMatrix.hh"
 
@@ -26,12 +27,14 @@ int main(int argc, char** argv) {
   //CreateStdRandomVector(mat.diag, seed);
   //CreateStdRandomVector(mat.sdiag, seed);
 
-  //auto start = std::chrono::steady_clock::now();
-  for (int i = 0; i < 10; ++i) {
+  auto start = std::chrono::steady_clock::now();
+  int n = 10;
+  for (int i = 0; i < n; ++i) {
     std::vector<std::complex<double>> estimate = nla_exam::QrMethod<true>(mat, 1e-12);
   }
-  //auto end = std::chrono::steady_clock::now();
-  //std::chrono::duration<double> runtime = (end - start);
+  auto end = std::chrono::steady_clock::now();
+  std::chrono::duration<double> runtime = (end - start);
+  std::cout << "Runtime for: " << n << " is: " << runtime.count() << std::endl;
 
-  return 1;
+  return 0;
 }

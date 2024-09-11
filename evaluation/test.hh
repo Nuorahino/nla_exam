@@ -206,6 +206,18 @@ void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_ei
   }
   RunTestNew(a_summary_file, arma_mat, res, "armadillo", ak_size, ak_seed, ak_is_hermitian, ak_tol);
 #endif
+#ifdef LAPACK
+  tridiagonal_matrix2 t_mat{M.real()};
+  auto start = std::chrono::steady_clock::now();
+  std::vector<C> estimate = CalculateTridiagonalEigenvalues(t_mat.diag, t_mat.sdiag);
+  auto end = std::chrono::steady_clock::now();
+  std::chrono::duration<double> runtime = (end - start);
+
+  std::string prefix = GetVariantString("LAPACK", ak_size, ak_is_hermitian,
+      false, ak_seed, ak_tol, runtime);
+  std::vector<double> error = GetApproximationError(estimate, res);
+  PrintSummary(a_summary_file, prefix, error);
+#endif
 
 
 //  auto start = std::chrono::steady_clock::now();

@@ -7,6 +7,7 @@
 
 
 #include "helpfunctions.hh"
+#include "../lapack/lapack_interface_impl.hh"
 
 
 namespace nla_exam {
@@ -85,19 +86,20 @@ template <class DataType>
 //inline std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
 std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
 GetGivensEntries(const DataType &ak_a, const DataType &ak_b) {
-  std::vector<DataType> res(3);
-  if (std::abs(ak_a) <= std::numeric_limits<DataType>::epsilon()) {
-    res.at(0) = 0;
-    res.at(1) = 1;
-  } else {
-    DataType r = std::hypot(ak_a, ak_b);
-    res.at(0) = std::abs(ak_a) / r;
-    res.at(1) = ak_b / r * DataType{std::copysign( DataType{1}, ak_a)};
-    res.at(2) = res.at(1);
-    // TODO(Georg): instead of copysign maybe use a test with >
-                                  // 0 to do this, as this always converts to float
-  }
-  return res;
+//  std::vector<DataType> res(3);
+//  if (std::abs(ak_a) <= std::numeric_limits<DataType>::epsilon()) {
+//    res.at(0) = 0;
+//    res.at(1) = 1;
+//  } else {
+//    DataType r = std::hypot(ak_a, ak_b);
+//    res.at(0) = std::abs(ak_a) / r;
+//    res.at(1) = ak_b / r * DataType{std::copysign( DataType{1}, ak_a)};
+//    res.at(2) = res.at(1);
+//    // TODO(Georg): instead of copysign maybe use a test with >
+//                                  // 0 to do this, as this always converts to float
+//  }
+//  return res;
+return compute_givens_parameter<DataType>(ak_a, ak_b);
 }
 
 
@@ -147,6 +149,7 @@ ImplicitQrStep(Matrix &matrix,
   int n = aEnd - aBegin + 1;
   DataType shift = WilkinsonShift<DataType, is_symmetric>(
         matrix, aEnd - 1);
+  //std::vector<DataType> entries(3);
   auto entries = GetGivensEntries<>(matrix(aBegin, aBegin) - shift,
                                     matrix(aBegin + 1, aBegin));  // Parameter for the initial step
   // innitial step
@@ -178,8 +181,7 @@ ImplicitQrStep(Matrix &matrix,
 template <class DataType, bool is_hermitian, class matrix>
 //std::enable_if_t<std::is_arithmetic<typename matrix::Scalar>::value && is_hermitian, std::vector<DataType>>
 std::enable_if_t<std::is_arithmetic<typename ElementType<matrix>::type>::value && is_hermitian, std::vector<DataType>>
-QrIterationHessenberg(matrix &a_matrix,
-                      const double ak_tol = 1e-12) {
+QrIterationHessenberg(matrix &a_matrix, const double ak_tol = 1e-12) {
   // generell definitions
   int begin = 0;
   int end = rows<matrix>(a_matrix) - 1;
@@ -206,7 +208,6 @@ template <
 inline std::enable_if_t<IsHermitian, std::vector<ComplexDataType>>
 QrMethod(const Matrix &ak_matrix, const double ak_tol = 1e-12) {
   //assert(ak_matrix.rows() == ak_matrix.cols());
-  //static_assert(std::is_convertible<typename Matrix::Scalar, DataType>::value,
   static_assert(std::is_convertible<typename ElementType<Matrix>::type, DataType>::value,
                 "Matrix Elements must be convertible to DataType");
   Matrix A = ak_matrix;  // Do not change the input matrix
