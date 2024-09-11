@@ -17,6 +17,12 @@
 
 #include "sfinae.hh"
 
+//union complex_union {
+//  constexpr complex_union() : comp{0}{};
+//  std::complex<double> comp;
+//  double real[2];
+//};
+
 // TODO (Georg): add a namespace around this file
 // TODO (Georg): Maybe rename to is_std_complex?
 template <typename>

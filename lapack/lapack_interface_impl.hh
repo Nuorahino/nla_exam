@@ -180,6 +180,25 @@ std::vector<DataType> compute_givens_parameter(DataType a, DataType b) {
 }
 
 
+template<class DataType>
+void
+compute_givens_parameter(DataType a, DataType b, std::array<DataType, 3> &entries) {
+//  typename RealDataType<DataType>::type c;
+//  DataType s, r;
+  if constexpr(std::is_same<DataType, double>::value) {
+    dlartg_(&a,&b,&entries[0], &entries[1], &entries[2]);
+//  } else if constexpr (std::is_same<DataType, float>::value) {
+//    slartg_(&a,&b,&c,&s,&r);
+//  } else if constexpr (std::is_same<DataType, std::complex<float>>::value) {
+//    clartg_(&a,&b,&c,&s,&r);
+//  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
+//    zlartg_(&a,&b,&c,&s,&r);
+  }
+  //return std::vector<DataType>{c,s,r};
+  return;
+}
+
+
 template<class DataType, class Derived>
 Eigen::Matrix<DataType, -1, -1> apply_givens_right(const Eigen::MatrixBase<Derived>& ak_matrix, int k, int j,
     typename RealDataType<DataType>::type c, DataType s) {

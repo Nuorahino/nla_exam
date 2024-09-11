@@ -84,8 +84,8 @@ DeflateDiagonal(Matrix &a_matrix, int &a_begin, int &a_end,
  */
 template <class DataType>
 //inline std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
-std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
-GetGivensEntries(const DataType &ak_a, const DataType &ak_b) {
+std::enable_if_t<std::is_arithmetic<DataType>::value, void>
+GetGivensEntries(const DataType &ak_a, const DataType &ak_b, std::array<DataType, 3> &entries) {
 //  std::vector<DataType> res(3);
 //  if (std::abs(ak_a) <= std::numeric_limits<DataType>::epsilon()) {
 //    res.at(0) = 0;
@@ -99,7 +99,8 @@ GetGivensEntries(const DataType &ak_a, const DataType &ak_b) {
 //                                  // 0 to do this, as this always converts to float
 //  }
 //  return res;
-return compute_givens_parameter<DataType>(ak_a, ak_b);
+  compute_givens_parameter<DataType>(ak_a, ak_b, entries);
+  return;
 }
 
 
@@ -109,29 +110,26 @@ inline std::enable_if_t<std::is_arithmetic<DataType>::value && is_symmetric, voi
 ApplyGivensTransformation(Matrix &matrix, const DataType &ak_c,
                 const DataType &ak_s, const int aBegin, DataType &buldge) {
     int k = aBegin;
-    DataType c = ak_c;
-    DataType s = ak_s;
-    DataType x1 = c * c * matrix(k, k) + s * s * matrix(k+1,k+1) + 2 * c * s * matrix(k, k+1);
-    DataType a2 = c * -s * matrix(k,k) - s * s * matrix(k, k+1) + c * c * matrix(k, k+1) + s * c * matrix(k+1, k+1);
+    const DataType &c = ak_c;
+    const DataType &s = ak_s;
+    DataType x1 = c * c * matrix(k, k) + s * s * matrix(k+1,k+1) + 2 * c * s * matrix(k+1, k);
+    DataType a2 = c * -s * matrix(k,k) - (s * s - c * c) * matrix(k+1, k) + s * c * matrix(k+1, k+1);
     DataType x2 = c * c * matrix(k+1, k+1) + s * s * matrix(k,k) - 2 * c * s * matrix(k+1, k);
+
+    matrix(k+1, k) = a2;
+    matrix(k, k) = x1;
+    matrix(k+1, k+1) = x2;
 
 if constexpr (!first) {
     DataType a1 = c * matrix(k, k - 1) + s * buldge;
-    matrix(k-1, k) = a1;
     matrix(k, k-1) = a1;
 }
 
 if constexpr (!last) {
     buldge = s * matrix(k+2, k+1);
-    DataType a3 = c * matrix(k+1, k+2);
-    matrix(k+1, k+2) = a3;
+    DataType a3 = c * matrix(k+2, k+1);
     matrix(k+2, k+1) = a3;
 }
-
-    matrix(k+1, k) = a2;
-    matrix(k, k+1) = a2;
-    matrix(k, k) = x1;
-    matrix(k+1, k+1) = x2;
 
   return;
 }
@@ -149,9 +147,9 @@ ImplicitQrStep(Matrix &matrix,
   int n = aEnd - aBegin + 1;
   DataType shift = WilkinsonShift<DataType, is_symmetric>(
         matrix, aEnd - 1);
-  //std::vector<DataType> entries(3);
-  auto entries = GetGivensEntries<>(matrix(aBegin, aBegin) - shift,
-                                    matrix(aBegin + 1, aBegin));  // Parameter for the initial step
+  std::array<typename ElementType<Matrix>::type, 3> entries;
+  GetGivensEntries<>(matrix(aBegin, aBegin) - shift,
+                                    matrix(aBegin + 1, aBegin), entries);  // Parameter for the initial step
   // innitial step
   DataType buldge = 0;
   if (n == 2) { //
@@ -161,10 +159,10 @@ ImplicitQrStep(Matrix &matrix,
   ApplyGivensTransformation<true, false, true, DataType>(matrix, entries.at(0), entries.at(1), aBegin, buldge);
   // buldge chasing
   for (int k = aBegin + 1; k < aEnd - 1; ++k) {
-    entries = GetGivensEntries<>(matrix(k, k - 1), buldge);
+    GetGivensEntries<>(matrix(k, k - 1), buldge, entries);
     ApplyGivensTransformation<false, false, true, DataType>(matrix, entries.at(0), entries.at(1), k, buldge); // this one is not inline
   }
-  entries = GetGivensEntries<>(matrix(aEnd - 1, aEnd - 2), buldge);
+  GetGivensEntries<>(matrix(aEnd - 1, aEnd - 2), buldge, entries);
   ApplyGivensTransformation<false, true, true, DataType>(matrix, entries.at(0), entries.at(1), aEnd - 1, buldge);
 
   return;
