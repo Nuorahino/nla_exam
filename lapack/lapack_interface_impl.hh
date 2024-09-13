@@ -183,16 +183,18 @@ std::vector<DataType> compute_givens_parameter(DataType a, DataType b) {
 template<class DataType>
 void
 compute_givens_parameter(DataType a, DataType b, std::array<DataType, 3> &entries) {
-//  typename RealDataType<DataType>::type c;
+  typedef typename RealDataType<DataType>::type RT;
 //  DataType s, r;
   if constexpr(std::is_same<DataType, double>::value) {
     dlartg_(&a,&b,&entries[0], &entries[1], &entries[2]);
-//  } else if constexpr (std::is_same<DataType, float>::value) {
-//    slartg_(&a,&b,&c,&s,&r);
-//  } else if constexpr (std::is_same<DataType, std::complex<float>>::value) {
-//    clartg_(&a,&b,&c,&s,&r);
-//  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
-//    zlartg_(&a,&b,&c,&s,&r);
+  } else if constexpr (std::is_same<DataType, float>::value) {
+    slartg_(&a,&b,&entries[0], &entries[1], &entries[2]);
+  } else if constexpr (std::is_same<DataType, std::complex<float>>::value) {
+    RT* c = reinterpret_cast<RT*>(&entries[0]);
+    clartg_(&a, &b, c, &entries[1], &entries[2]);
+  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
+    RT* c = reinterpret_cast<RT*>(&entries[0]);
+    zlartg_(&a, &b, c, &entries[1], &entries[2]);
   }
   //return std::vector<DataType>{c,s,r};
   return;

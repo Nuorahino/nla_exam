@@ -4,7 +4,6 @@
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 
-#include "qr.hh"
 #include "test.hh"
 
 
@@ -39,6 +38,9 @@ int main(int argc, char** argv) {
   std::cout << "Testing for: " << start << " to " << max_size << std::endl;
   for( int i = start; i <= max_size; ++i ) {
   //for (int i : testsizes) {
+//    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-9);
+//    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-10);
+//    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-11);
 #ifdef FULL
 #ifdef REAL_SYMM
     RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-12);

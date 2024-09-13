@@ -25,7 +25,8 @@
 //#endif
 #ifdef BLAZE
 //#define VERSION "blaze"
-#include <blaze/Math.h>
+//#include <blaze/Math.h>
+#include <blaze/math/DynamicMatrix.h>
 #endif
 #ifdef ARMADILLO
 //#define VERSION "armadillo"
@@ -138,16 +139,20 @@ void RunTestNew(std::ofstream& a_summary_file, MatrixType Matrix,
   VectorType estimate;
   if (ak_is_hermitian) {
     auto start = std::chrono::steady_clock::now();
-    estimate = nla_exam::QrMethod<true>(Matrix, ak_tol);
+    //estimate = nla_exam::QrMethod<true>(Matrix, ak_tol);
     auto end = std::chrono::steady_clock::now();
     runtime = (end - start);
   } else {
-    //estimate = nla_exam::QrMethod<false>(t_mat, ak_tol);
+    auto start = std::chrono::steady_clock::now();
+    estimate = nla_exam::QrMethod<false>(Matrix, ak_tol);
+    auto end = std::chrono::steady_clock::now();
+    runtime = (end - start);
   }
 
   std::string prefix = GetVariantString(ak_variant, ak_size, ak_is_hermitian,
       IsComplex<typename ElementType<MatrixType>::type>(), ak_seed, ak_tol, runtime);
   std::vector<double> error = GetApproximationError(estimate, res);
+  //std::vector<double> error(res.size());
   PrintSummary(a_summary_file, prefix, error);
 }
 
@@ -198,7 +203,7 @@ void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_ei
   RunTestNew(a_summary_file, blaze_mat, res, "blaze", ak_size, ak_seed, ak_is_hermitian, ak_tol);
 #endif
 #ifdef ARMADILLO
-  arma::Mat<double> arma_mat(M.rows(), M.rows());
+  arma::Mat<std::complex<double>> arma_mat(M.rows(), M.rows());
   for(int i = 0; i < M.rows(); ++i) {
     for(int j = 0; j < M.rows(); ++j) {
       arma_mat(i, j) = M(i, j);

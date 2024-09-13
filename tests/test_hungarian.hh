@@ -9,7 +9,6 @@
 #include <vector>
 #include <algorithm>
 
-
 template <class DT>
 std::vector<int> new_hungarian_algorithm(const std::vector<std::vector<DT>> &graph) {
   const int n = graph.size();
@@ -32,7 +31,7 @@ std::vector<int> new_hungarian_algorithm(const std::vector<std::vector<DT>> &gra
         if (graph.at(i).at(j) - u.at(i) - v.at(j) < dist.at(j)) {
           dist.at(j) = graph.at(i).at(j) - u.at(i) - v.at(j);
           previous.at(j) = i;
-          if (dist.at(j) == 0) {
+          if (std::abs(dist.at(j)) < 1e-12) {
             selected_col = j;
             found = true;
           }
@@ -40,7 +39,7 @@ std::vector<int> new_hungarian_algorithm(const std::vector<std::vector<DT>> &gra
       }
       if (!found) {
         for (int l = 0; l < n; ++l) {
-          if (dist.at(l) > 0 && dist.at(l) < dmin) {
+          if (dist.at(l) > 1e-12 && dist.at(l) < dmin) {
             dmin = dist.at(l);
             if (match.at(l) == -1 || !scanned.at(match.at(l))) {
               selected_col = l;

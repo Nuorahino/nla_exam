@@ -161,7 +161,6 @@ order_as_min_matching(std::vector<DataType>& a, const std::vector<DataType>& b) 
   std::vector<std::vector<double>> graph(b.size());
   for (unsigned int i = 0; i < a.size(); ++i) {
     for (unsigned int ii = 0; ii < b.size(); ++ii) {
-      //double x = std::abs(b.at(ii) - a.at(i)) - std::abs(b.at(i) - a.at(i));
       double x = std::abs(b.at(ii) - a.at(i));
       graph.at(i).push_back(x);
     }

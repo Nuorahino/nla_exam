@@ -5,7 +5,6 @@
 #include <cmath> // for std::copysign
 #include <vector>
 
-
 #include "helpfunctions.hh"
 #include "../lapack/lapack_interface_impl.hh"
 
@@ -30,8 +29,7 @@ CalcEigenvaluesFromSchur(const Matrix &ak_matrix,
  * Return: value of the shift parameter
  */
 template <class DataType, bool is_symmetric, class Matrix>
-//inline std::enable_if_t<is_symmetric && std::is_arithmetic<DataType>::value, DataType>
-std::enable_if_t<is_symmetric && std::is_arithmetic<DataType>::value, DataType>
+inline std::enable_if_t<is_symmetric && std::is_arithmetic<DataType>::value, DataType>
 WilkinsonShift(const Matrix &ak_matrix, const int i) {
   DataType d = (ak_matrix(i, i) - ak_matrix(i + 1, i + 1)) / static_cast<DataType>(2.0);
   if (d >= 0) {
@@ -54,6 +52,7 @@ template <class Matrix>
 inline int
 DeflateDiagonal(Matrix &a_matrix, int &a_begin, int &a_end,
                 const double ak_tol = 1e-12) {
+  //std::cout << "Inside deflation" << std::endl;
   int state = 2;
   for (int i = a_end; i > a_begin; --i) {
     if (std::abs(a_matrix(i, i - 1)) <=
@@ -86,19 +85,18 @@ template <class DataType>
 //inline std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
 std::enable_if_t<std::is_arithmetic<DataType>::value, void>
 GetGivensEntries(const DataType &ak_a, const DataType &ak_b, std::array<DataType, 3> &entries) {
-//  std::vector<DataType> res(3);
 //  if (std::abs(ak_a) <= std::numeric_limits<DataType>::epsilon()) {
-//    res.at(0) = 0;
-//    res.at(1) = 1;
+//    entries.at(0) = 0;
+//    entries.at(1) = 1;
+//    entries.at(2) = ak_b;
 //  } else {
 //    DataType r = std::hypot(ak_a, ak_b);
-//    res.at(0) = std::abs(ak_a) / r;
-//    res.at(1) = ak_b / r * DataType{std::copysign( DataType{1}, ak_a)};
-//    res.at(2) = res.at(1);
+//    entries.at(0) = std::abs(ak_a) / r;
+//    entries.at(1) = ak_b / r * DataType{std::copysign( DataType{1}, ak_a)};
+//    entries.at(2) = r;
 //    // TODO(Georg): instead of copysign maybe use a test with >
 //                                  // 0 to do this, as this always converts to float
 //  }
-//  return res;
   compute_givens_parameter<DataType>(ak_a, ak_b, entries);
   return;
 }
@@ -134,6 +132,35 @@ if constexpr (!last) {
   return;
 }
 
+template <bool first, bool last, bool is_symmetric,
+  class DataType, class Matrix>
+inline std::enable_if_t<std::is_arithmetic<DataType>::value && is_symmetric, void>
+ApplyGivensTransformation(Matrix &matrix, const std::array<DataType, 3> parameter,
+                const int aBegin, DataType &buldge) {
+    double sq_parameter[2];
+    sq_parameter[0] = parameter[0] * parameter[0];
+    sq_parameter[1] = parameter[1] * parameter[1];
+    const DataType cs = parameter[0] * parameter[1];
+
+    DataType x1 = sq_parameter[0] * matrix(aBegin, aBegin) + sq_parameter[1] * matrix(aBegin+1,aBegin+1) + 2 * cs * matrix(aBegin+1, aBegin);
+    DataType a2 = -cs * matrix(aBegin,aBegin) - (sq_parameter[1] - sq_parameter[0]) * matrix(aBegin+1, aBegin) + cs * matrix(aBegin+1, aBegin+1);
+    DataType x2 = sq_parameter[0] * matrix(aBegin+1, aBegin+1) + sq_parameter[1] * matrix(aBegin,aBegin) - 2 * cs * matrix(aBegin+1, aBegin);
+
+    matrix(aBegin+1, aBegin) = a2;
+    matrix(aBegin, aBegin) = x1;
+    matrix(aBegin+1, aBegin+1) = x2;
+
+if constexpr (!first) {
+    matrix(aBegin, aBegin-1) = parameter[2];
+}
+
+if constexpr (!last) {
+    buldge = parameter[1] * matrix(aBegin+2, aBegin+1);
+    matrix(aBegin+2, aBegin+1) *= parameter[0];
+}
+
+  return;
+}
 
 /* Executes one step of the implicit qr algorithm for a tridiagonal Matrix
  * Parameter:
@@ -141,12 +168,12 @@ if constexpr (!last) {
  * Return: void
  */
 template <class DataType, bool is_symmetric, typename Matrix>
-std::enable_if_t<std::is_arithmetic<DataType>::value && is_symmetric, void>
-ImplicitQrStep(Matrix &matrix,
-               const int aBegin, const int aEnd) {
+std::enable_if_t<!std::is_same<DataType, double>::value && std::is_arithmetic<DataType>::value && is_symmetric, void>
+ImplicitQrStep(Matrix &matrix, const int aBegin, const int aEnd) {
   int n = aEnd - aBegin + 1;
   DataType shift = WilkinsonShift<DataType, is_symmetric>(
         matrix, aEnd - 1);
+
   std::array<typename ElementType<Matrix>::type, 3> entries;
   GetGivensEntries<>(matrix(aBegin, aBegin) - shift,
                                     matrix(aBegin + 1, aBegin), entries);  // Parameter for the initial step
@@ -164,6 +191,35 @@ ImplicitQrStep(Matrix &matrix,
   }
   GetGivensEntries<>(matrix(aEnd - 1, aEnd - 2), buldge, entries);
   ApplyGivensTransformation<false, true, true, DataType>(matrix, entries.at(0), entries.at(1), aEnd - 1, buldge);
+
+  return;
+}
+
+
+template <class DataType, bool is_symmetric, typename Matrix>
+std::enable_if_t<std::is_same<DataType, double>::value && is_symmetric, void>
+ImplicitQrStep(Matrix &matrix,
+               const int aBegin, const int aEnd) {
+  int n = aEnd - aBegin + 1;
+  DataType shift = WilkinsonShift<DataType, is_symmetric>(
+        matrix, aEnd - 1);
+  std::array<typename ElementType<Matrix>::type, 3> entries;
+  GetGivensEntries<>(matrix(aBegin, aBegin) - shift,
+                                    matrix(aBegin + 1, aBegin), entries);  // Parameter for the initial step
+  // innitial step
+  DataType buldge = 0;
+  if (n == 2) { //
+    ApplyGivensTransformation<true, true, true, DataType>(matrix, entries, aBegin, buldge);
+    return;
+  }
+  ApplyGivensTransformation<true, false, true, DataType>(matrix, entries, aBegin, buldge);
+  // buldge chasing
+  for (int k = aBegin + 1; k < aEnd - 1; ++k) {
+    GetGivensEntries<>(matrix(k, k - 1), buldge, entries);
+    ApplyGivensTransformation<false, false, true, DataType>(matrix, entries, k, buldge); // this one is not inline
+  }
+  GetGivensEntries<>(matrix(aEnd - 1, aEnd - 2), buldge, entries);
+  ApplyGivensTransformation<false, true, true, DataType>(matrix, entries, aEnd - 1, buldge);
 
   return;
 }
