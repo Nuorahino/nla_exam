@@ -16,8 +16,8 @@ target_compile_options(QR INTERFACE -O3 -msse -msse2 -DIMPLICIT -DSINGLE ${debug
 
 find_package(Eigen3 3.3 REQUIRED)
 target_link_libraries(QR INTERFACE Eigen3::Eigen)
-find_package(easy_profiler REQUIRED)
-target_link_libraries(QR INTERFACE easy_profiler)
+#find_package(easy_profiler REQUIRED)
+#target_link_libraries(QR INTERFACE easy_profiler)
 
 add_subdirectory(evaluation)
 add_subdirectory(tests)
