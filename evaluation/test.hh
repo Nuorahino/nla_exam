@@ -170,8 +170,11 @@ template<class MatrixType>
 void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_eigenvalue_file,
     const int ak_size, const int ak_seed, const bool ak_is_hermitian,
     const double ak_tol = 1e-12) {
-  typedef std::complex<double> C;
   MatrixType M;
+  typedef typename MatrixType::Scalar DT;
+
+
+  typedef std::complex<double> C;
   std::vector<C> res;
   std::tie(M, res) = CreateRandom<MatrixType>(ak_size, ak_is_hermitian, ak_seed);
 
@@ -194,7 +197,7 @@ void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_ei
   RunTestNew(a_summary_file, wrapped_mat, res, "wrapped", ak_size, ak_seed, ak_is_hermitian, ak_tol);
 #endif
 #ifdef BLAZE
-  blaze::DynamicMatrix<double> blaze_mat(M.rows(), M.rows());
+  blaze::DynamicMatrix<DT> blaze_mat(M.rows(), M.rows());
   for(int i = 0; i < M.rows(); ++i) {
     for(int j = 0; j < M.rows(); ++j) {
       blaze_mat(i, j) = M(i, j);
@@ -203,7 +206,7 @@ void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_ei
   RunTestNew(a_summary_file, blaze_mat, res, "blaze", ak_size, ak_seed, ak_is_hermitian, ak_tol);
 #endif
 #ifdef ARMADILLO
-  arma::Mat<std::complex<double>> arma_mat(M.rows(), M.rows());
+  arma::Mat<DT> arma_mat(M.rows(), M.rows());
   for(int i = 0; i < M.rows(); ++i) {
     for(int j = 0; j < M.rows(); ++j) {
       arma_mat(i, j) = M(i, j);

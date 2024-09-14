@@ -178,186 +178,186 @@ std::vector<DataType> compute_givens_parameter(DataType a, DataType b) {
   }
   return std::vector<DataType>{c,s,r};
 }
-
-
-template<class DataType>
-void
-compute_givens_parameter(DataType a, DataType b, std::array<DataType, 3> &entries) {
-  typedef typename RealDataType<DataType>::type RT;
-//  DataType s, r;
-  if constexpr(std::is_same<DataType, double>::value) {
-    dlartg_(&a,&b,&entries[0], &entries[1], &entries[2]);
-  } else if constexpr (std::is_same<DataType, float>::value) {
-    slartg_(&a,&b,&entries[0], &entries[1], &entries[2]);
-  } else if constexpr (std::is_same<DataType, std::complex<float>>::value) {
-    RT* c = reinterpret_cast<RT*>(&entries[0]);
-    clartg_(&a, &b, c, &entries[1], &entries[2]);
-  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
-    RT* c = reinterpret_cast<RT*>(&entries[0]);
-    zlartg_(&a, &b, c, &entries[1], &entries[2]);
-  }
-  //return std::vector<DataType>{c,s,r};
-  return;
-}
-
-
-template<class DataType, class Derived>
-Eigen::Matrix<DataType, -1, -1> apply_givens_right(const Eigen::MatrixBase<Derived>& ak_matrix, int k, int j,
-    typename RealDataType<DataType>::type c, DataType s) {
-  Eigen::Matrix<DataType, -1, -1> H = ak_matrix;
-  s = complex_conj(s);          // As the function for applying the rotation does not have a left, and right side
-
-  int n = ak_matrix.rows();
-  Eigen::Matrix<DataType, -1, 1> X_vec = H(Eigen::all, k);
-  Eigen::Matrix<DataType, -1, 1> Y_vec = H(Eigen::all, j);
-  DataType* X = X_vec.data();
-  int INCX = 1;
-  DataType* Y = Y_vec.data();
-  int INCY = 1;
-  int INCC = 1;
-  typename RealDataType<DataType>::type* C_vec = new typename RealDataType<DataType>::type[n];
-  DataType* S_vec = new DataType[n];
-  for(int i = 0; i < n; ++i) {
-    S_vec[i] = s;
-    C_vec[i] = c;
-  }
-
-  if constexpr(std::is_same<DataType, double>::value) {
-    dlartv_(&n, X, &INCX, Y, &INCY, C_vec, S_vec, &INCC);
-  } else if constexpr (std::is_same<DataType, float>::value) {
-    slartv_(&n, X, &INCX, Y, &INCY, C_vec, S_vec, &INCC);
-  } else if constexpr (std::is_same<DataType, std::complex<float>>::value) {
-    clartv_(&n, X, &INCX, Y, &INCY, C_vec, S_vec, &INCC);
-  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
-    zlartv_(&n, X, &INCX, Y, &INCY, C_vec, S_vec, &INCC);
-  }
-
-  H(Eigen::all, k) = X_vec;
-  H(Eigen::all, j) = Y_vec;
-  return H;
-}
-
-template<class DataType, class Derived>
-Eigen::Matrix<DataType, -1, -1> apply_givens_right(const Eigen::MatrixBase<Derived>& ak_matrix, int k,
-    typename RealDataType<DataType>::type c, DataType s) {
-  return apply_givens_right(ak_matrix, k, k + 1, c, s);
-}
-
-template<class DataType, class Derived>
-Eigen::Matrix<DataType, -1, -1> apply_givens_left(const Eigen::MatrixBase<Derived>& ak_matrix, int k, int j,
-                                                  typename RealDataType<DataType>::type c, DataType s) {
-  Eigen::Matrix<DataType, -1, -1> H = ak_matrix;
-
-  int n = ak_matrix.cols();
-  Eigen::Matrix<DataType, -1, 1> X_vec = H(k, Eigen::all);
-  Eigen::Matrix<DataType, -1, 1> Y_vec = H(j, Eigen::all);
-  DataType* X = X_vec.data();
-  int INCX = 1;
-  DataType* Y = Y_vec.data();
-  int INCY = 1;
-  int INCC = 1;
-  typename RealDataType<DataType>::type* C_vec = new typename RealDataType<DataType>::type[n];
-  DataType* S_vec = new DataType[n];
-  for (int i = 0; i < n; ++i) {
-    S_vec[i] = s;
-    C_vec[i] = c;
-  }
-
-  if constexpr (std::is_same<DataType, double>::value) {
-    dlartv_(&n, X, &INCX, Y, &INCY, C_vec, S_vec, &INCC);
-  } else if constexpr (std::is_same<DataType, float>::value) {
-    slartv_(&n, X, &INCX, Y, &INCY, C_vec, S_vec, &INCC);
-  } else if constexpr (std::is_same<DataType, std::complex<float>>::value) {
-    clartv_(&n, X, &INCX, Y, &INCY, C_vec, S_vec, &INCC);
-  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
-    zlartv_(&n, X, &INCX, Y, &INCY, C_vec, S_vec, &INCC);
-  }
-
-  H(k, Eigen::all) = X_vec;
-  H(j, Eigen::all) = Y_vec;
-  return H;
-}
-
-template <class DataType, class Derived>
-Eigen::Matrix<DataType, -1, -1>
-apply_givens_left(const Eigen::MatrixBase<Derived>& ak_matrix, int k,
-                  typename RealDataType<DataType>::type c, DataType s) {
-  return apply_givens_left(ak_matrix, k, k + 1, c, s);
-}
-
-template <class DataType, class Derived>
-std::tuple<Eigen::Matrix<DataType, -1, -1>, DataType>
-get_householder(const Eigen::MatrixBase<Derived>& ak_v) {
-  int n = ak_v.rows();
-  DataType alpha = ak_v(0);
-  Eigen::Vector<DataType, -1> v = ak_v(Eigen::seqN(1, n-1));
-  DataType* vd = v.data();
-  int incrx = 1;
-  DataType tau;
-  if constexpr (std::is_same<DataType, double>::value) {
-    dlarfg_(&n, &alpha, vd, &incrx, &tau);
-  } else if constexpr (std::is_same<DataType, float>::value) {
-    slarfg_(&n, &alpha, vd, &incrx, &tau);
-  } else if constexpr (std::is_same<DataType, std::complex<float>>::value) {
-    clarfg_(&n, &alpha, vd, &incrx, &tau);
-  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
-    zlarfg_(&n, &alpha, vd, &incrx, &tau);
-  }
-  return {v, tau};
-}
-
-template <class DataType, class Derived, class Derived2>
-Eigen::Matrix<DataType, -1, -1>
-apply_householder_left(const Eigen::MatrixBase<Derived>& ak_matrix, const Eigen::MatrixBase<Derived2>& ak_w, DataType tau) {
-  Eigen::Matrix<DataType, -1, -1> res = ak_matrix;
-  Eigen::Vector<DataType, -1> w = ak_w;
-  char side = 'L';
-  int m = ak_matrix.rows();
-  int n = ak_matrix.cols();
-  DataType* V = w.data();
-  int INCV = 1;
-
-  DataType* C = res.data();
-  int LDC = m;
-  DataType* WORK = new DataType[n];
-
-  if constexpr (std::is_same<DataType, double>::value) {
-    dlarf_(&side, &m, &n, V, &INCV, &tau, C, &LDC, WORK);
-  } else if constexpr (std::is_same<DataType, float>::value) {
-    slarf_(&side, &m, &n, V, &INCV, &tau, C, &LDC, WORK);
-  } else if constexpr (std::is_same<DataType, std::complex<float>>::value) {
-    clarf_(&side, &m, &n, V, &INCV, &tau, C, &LDC, WORK);
-  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
-    zlarf_(&side, &m, &n, V, &INCV, &tau, C, &LDC, WORK);
-  }
-  return res;
-}
-
-template <class DataType, class Derived, class Derived2>
-Eigen::Matrix<DataType, -1, -1>
-apply_householder_right(const Eigen::MatrixBase<Derived>& ak_matrix, const Eigen::MatrixBase<Derived2>& ak_w, DataType tau) {
-  Eigen::Matrix<DataType, -1, -1> res = ak_matrix;
-  Eigen::Vector<DataType, -1> w = ak_w;
-  char side = 'R';
-  int m = ak_matrix.rows();
-  int n = ak_matrix.cols();
-  DataType* V = w.data();
-  int INCV = 1;
-
-  DataType* C = res.data();
-  int LDC = m;
-  DataType* WORK = new DataType[n];
-
-  if constexpr (std::is_same<DataType, double>::value) {
-    dlarf_(&side, &m, &n, V, &INCV, &tau, C, &LDC, WORK);
-  } else if constexpr (std::is_same<DataType, float>::value) {
-    slarf_(&side, &m, &n, V, &INCV, &tau, C, &LDC, WORK);
-  } else if constexpr (std::is_same<DataType, std::complex<float>>::value) {
-    clarf_(&side, &m, &n, V, &INCV, &tau, C, &LDC, WORK);
-  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
-    zlarf_(&side, &m, &n, V, &INCV, &tau, C, &LDC, WORK);
-  }
-  return res;
-}
+//
+//
+//template<class DataType>
+//void
+//compute_givens_parameter(DataType a, DataType b, std::array<DataType, 3> &entries) {
+//  typedef typename RealDataType<DataType>::type RT;
+////  DataType s, r;
+//  if constexpr(std::is_same<DataType, double>::value) {
+//    dlartg_(&a,&b,&entries[0], &entries[1], &entries[2]);
+//  } else if constexpr (std::is_same<DataType, float>::value) {
+//    slartg_(&a,&b,&entries[0], &entries[1], &entries[2]);
+//  } else if constexpr (std::is_same<DataType, std::complex<float>>::value) {
+//    RT* c = reinterpret_cast<RT*>(&entries[0]);
+//    clartg_(&a, &b, c, &entries[1], &entries[2]);
+//  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
+//    RT* c = reinterpret_cast<RT*>(&entries[0]);
+//    zlartg_(&a, &b, c, &entries[1], &entries[2]);
+//  }
+//  //return std::vector<DataType>{c,s,r};
+//  return;
+//}
+//
+//
+//template<class DataType, class Derived>
+//Eigen::Matrix<DataType, -1, -1> apply_givens_right(const Eigen::MatrixBase<Derived>& ak_matrix, int k, int j,
+//    typename RealDataType<DataType>::type c, DataType s) {
+//  Eigen::Matrix<DataType, -1, -1> H = ak_matrix;
+//  s = complex_conj(s);          // As the function for applying the rotation does not have a left, and right side
+//
+//  int n = ak_matrix.rows();
+//  Eigen::Matrix<DataType, -1, 1> X_vec = H(Eigen::all, k);
+//  Eigen::Matrix<DataType, -1, 1> Y_vec = H(Eigen::all, j);
+//  DataType* X = X_vec.data();
+//  int INCX = 1;
+//  DataType* Y = Y_vec.data();
+//  int INCY = 1;
+//  int INCC = 1;
+//  typename RealDataType<DataType>::type* C_vec = new typename RealDataType<DataType>::type[n];
+//  DataType* S_vec = new DataType[n];
+//  for(int i = 0; i < n; ++i) {
+//    S_vec[i] = s;
+//    C_vec[i] = c;
+//  }
+//
+//  if constexpr(std::is_same<DataType, double>::value) {
+//    dlartv_(&n, X, &INCX, Y, &INCY, C_vec, S_vec, &INCC);
+//  } else if constexpr (std::is_same<DataType, float>::value) {
+//    slartv_(&n, X, &INCX, Y, &INCY, C_vec, S_vec, &INCC);
+//  } else if constexpr (std::is_same<DataType, std::complex<float>>::value) {
+//    clartv_(&n, X, &INCX, Y, &INCY, C_vec, S_vec, &INCC);
+//  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
+//    zlartv_(&n, X, &INCX, Y, &INCY, C_vec, S_vec, &INCC);
+//  }
+//
+//  H(Eigen::all, k) = X_vec;
+//  H(Eigen::all, j) = Y_vec;
+//  return H;
+//}
+//
+//template<class DataType, class Derived>
+//Eigen::Matrix<DataType, -1, -1> apply_givens_right(const Eigen::MatrixBase<Derived>& ak_matrix, int k,
+//    typename RealDataType<DataType>::type c, DataType s) {
+//  return apply_givens_right(ak_matrix, k, k + 1, c, s);
+//}
+//
+//template<class DataType, class Derived>
+//Eigen::Matrix<DataType, -1, -1> apply_givens_left(const Eigen::MatrixBase<Derived>& ak_matrix, int k, int j,
+//                                                  typename RealDataType<DataType>::type c, DataType s) {
+//  Eigen::Matrix<DataType, -1, -1> H = ak_matrix;
+//
+//  int n = ak_matrix.cols();
+//  Eigen::Matrix<DataType, -1, 1> X_vec = H(k, Eigen::all);
+//  Eigen::Matrix<DataType, -1, 1> Y_vec = H(j, Eigen::all);
+//  DataType* X = X_vec.data();
+//  int INCX = 1;
+//  DataType* Y = Y_vec.data();
+//  int INCY = 1;
+//  int INCC = 1;
+//  typename RealDataType<DataType>::type* C_vec = new typename RealDataType<DataType>::type[n];
+//  DataType* S_vec = new DataType[n];
+//  for (int i = 0; i < n; ++i) {
+//    S_vec[i] = s;
+//    C_vec[i] = c;
+//  }
+//
+//  if constexpr (std::is_same<DataType, double>::value) {
+//    dlartv_(&n, X, &INCX, Y, &INCY, C_vec, S_vec, &INCC);
+//  } else if constexpr (std::is_same<DataType, float>::value) {
+//    slartv_(&n, X, &INCX, Y, &INCY, C_vec, S_vec, &INCC);
+//  } else if constexpr (std::is_same<DataType, std::complex<float>>::value) {
+//    clartv_(&n, X, &INCX, Y, &INCY, C_vec, S_vec, &INCC);
+//  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
+//    zlartv_(&n, X, &INCX, Y, &INCY, C_vec, S_vec, &INCC);
+//  }
+//
+//  H(k, Eigen::all) = X_vec;
+//  H(j, Eigen::all) = Y_vec;
+//  return H;
+//}
+//
+//template <class DataType, class Derived>
+//Eigen::Matrix<DataType, -1, -1>
+//apply_givens_left(const Eigen::MatrixBase<Derived>& ak_matrix, int k,
+//                  typename RealDataType<DataType>::type c, DataType s) {
+//  return apply_givens_left(ak_matrix, k, k + 1, c, s);
+//}
+//
+//template <class DataType, class Derived>
+//std::tuple<Eigen::Matrix<DataType, -1, -1>, DataType>
+//get_householder(const Eigen::MatrixBase<Derived>& ak_v) {
+//  int n = ak_v.rows();
+//  DataType alpha = ak_v(0);
+//  Eigen::Vector<DataType, -1> v = ak_v(Eigen::seqN(1, n-1));
+//  DataType* vd = v.data();
+//  int incrx = 1;
+//  DataType tau;
+//  if constexpr (std::is_same<DataType, double>::value) {
+//    dlarfg_(&n, &alpha, vd, &incrx, &tau);
+//  } else if constexpr (std::is_same<DataType, float>::value) {
+//    slarfg_(&n, &alpha, vd, &incrx, &tau);
+//  } else if constexpr (std::is_same<DataType, std::complex<float>>::value) {
+//    clarfg_(&n, &alpha, vd, &incrx, &tau);
+//  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
+//    zlarfg_(&n, &alpha, vd, &incrx, &tau);
+//  }
+//  return {v, tau};
+//}
+//
+//template <class DataType, class Derived, class Derived2>
+//Eigen::Matrix<DataType, -1, -1>
+//apply_householder_left(const Eigen::MatrixBase<Derived>& ak_matrix, const Eigen::MatrixBase<Derived2>& ak_w, DataType tau) {
+//  Eigen::Matrix<DataType, -1, -1> res = ak_matrix;
+//  Eigen::Vector<DataType, -1> w = ak_w;
+//  char side = 'L';
+//  int m = ak_matrix.rows();
+//  int n = ak_matrix.cols();
+//  DataType* V = w.data();
+//  int INCV = 1;
+//
+//  DataType* C = res.data();
+//  int LDC = m;
+//  DataType* WORK = new DataType[n];
+//
+//  if constexpr (std::is_same<DataType, double>::value) {
+//    dlarf_(&side, &m, &n, V, &INCV, &tau, C, &LDC, WORK);
+//  } else if constexpr (std::is_same<DataType, float>::value) {
+//    slarf_(&side, &m, &n, V, &INCV, &tau, C, &LDC, WORK);
+//  } else if constexpr (std::is_same<DataType, std::complex<float>>::value) {
+//    clarf_(&side, &m, &n, V, &INCV, &tau, C, &LDC, WORK);
+//  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
+//    zlarf_(&side, &m, &n, V, &INCV, &tau, C, &LDC, WORK);
+//  }
+//  return res;
+//}
+//
+//template <class DataType, class Derived, class Derived2>
+//Eigen::Matrix<DataType, -1, -1>
+//apply_householder_right(const Eigen::MatrixBase<Derived>& ak_matrix, const Eigen::MatrixBase<Derived2>& ak_w, DataType tau) {
+//  Eigen::Matrix<DataType, -1, -1> res = ak_matrix;
+//  Eigen::Vector<DataType, -1> w = ak_w;
+//  char side = 'R';
+//  int m = ak_matrix.rows();
+//  int n = ak_matrix.cols();
+//  DataType* V = w.data();
+//  int INCV = 1;
+//
+//  DataType* C = res.data();
+//  int LDC = m;
+//  DataType* WORK = new DataType[n];
+//
+//  if constexpr (std::is_same<DataType, double>::value) {
+//    dlarf_(&side, &m, &n, V, &INCV, &tau, C, &LDC, WORK);
+//  } else if constexpr (std::is_same<DataType, float>::value) {
+//    slarf_(&side, &m, &n, V, &INCV, &tau, C, &LDC, WORK);
+//  } else if constexpr (std::is_same<DataType, std::complex<float>>::value) {
+//    clarf_(&side, &m, &n, V, &INCV, &tau, C, &LDC, WORK);
+//  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
+//    zlarf_(&side, &m, &n, V, &INCV, &tau, C, &LDC, WORK);
+//  }
+//  return res;
+//}
 
 #endif

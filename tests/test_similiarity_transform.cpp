@@ -9,7 +9,7 @@
 #include "helpfunctions_for_test.hh"
 
 
-TEMPLATE_TEST_CASE("Non Symmetric Hessenberg Transformation has correctform",
+TEMPLATE_TEST_CASE("Non Symmetric Hessenberg Transformation has correct form",
                    "[HessenbergTransformation]", float, double, std::complex<float>,
                    std::complex<double>) {
   int n = GENERATE(take(5, random<int>(3, 20)));
