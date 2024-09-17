@@ -1,13 +1,27 @@
 #include <iostream>
 #include <complex>
 
-#include <blaze/math/DynamicMatrix.h>
+#include <eigen3/Eigen/Dense>
 
 #include "../../include/qr.hh"
-#include "../../matrix/matrix_classes.hh"
-#include "../createMatrix.hh"
 #include "../lapack/lapack_interface_impl.hh"
-#include <armadillo>
+
+template<typename Matrix>
+void
+CreateStdRandomTri(const Matrix &a_mat, const int ak_seed = std::time(nullptr)) {
+  Matrix &mat = const_cast<Matrix&>(a_mat);
+  //std::srand(ak_seed);
+  std::mt19937 rng(ak_seed);
+  std::uniform_real_distribution<double> distribution(-1000, 1000);
+  std::size_t n = mat.rows();
+  for (int i = 0; i < n - 1; ++i) {
+    mat(i, i) = distribution(rng);
+    mat(i, i + 1) = distribution(rng);
+    mat(i + 1, i) = mat(i, i + 1);
+  }
+  mat(n - 1, n - 1) = distribution(rng);
+  return;
+}
 
 
 // Maybe use std::optional instead
@@ -21,17 +35,13 @@ int main(int argc, char** argv) {
     seed = atoi(argv[2]);
   }
 
-  //tridiagonal_matrix2<double> mat;
-  //mat.diag.resize(size);
-  //mat.sdiag.resize(size - 1);
-  //CreateStdRandomTri(mat);
-  arma::Mat<std::complex<double>> mat(size, size, arma::fill::randu);
+  Eigen::MatrixXd test(size, size);
+  CreateStdRandomTri(test);
 
   auto start = std::chrono::steady_clock::now();
   int n = 10;
   for (int i = 0; i < n; ++i) {
-    //std::vector<std::complex<double>> estimate = nla_exam::QrMethod<true>(mat, 1e-17);
-    std::vector<std::complex<double>> estimate = nla_exam::QrMethod<false>(mat, 1e-12);
+    std::vector<std::complex<double>> estimate = nla_exam::QrMethod<true>(test, 1e-12);
   }
   auto end = std::chrono::steady_clock::now();
   std::chrono::duration<double> runtime = (end - start);
