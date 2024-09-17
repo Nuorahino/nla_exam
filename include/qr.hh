@@ -451,9 +451,9 @@ ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
     // buldge chasing
     for (int k = 1; k < n - 2; ++k) {
       entries = GetGivensEntries<>(a_matrix(k, k - 1), a_matrix(k + 1, k - 1));
-      ApplyGivensLeft<DataType>(matrix(Eigen::seqN(k, 2), Eigen::seq(k - 1, n - 1)),
+      ApplyGivensLeft<DataType>(matrix(Eigen::seqN(k, 2), Eigen::seq(k - 1, k + 2)),
                                 entries.at(0), entries.at(1));
-      ApplyGivensRight<DataType>(matrix(Eigen::seq(0, k + 2), Eigen::seqN(k, 2)),
+      ApplyGivensRight<DataType>(matrix(Eigen::seq(k - 1, k + 2), Eigen::seqN(k, 2)),
                                  entries.at(0), entries.at(1));
       matrix(k - 1, k + 1) = 0;
       matrix(k + 1, k - 1) = 0;
@@ -461,7 +461,7 @@ ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
     entries = GetGivensEntries<>(a_matrix(n - 2, n - 3), a_matrix(n - 1, n - 3));
     ApplyGivensLeft<DataType>(matrix(Eigen::seqN(n - 2, 2), Eigen::lastN(3)),
                               entries.at(0), entries.at(1));
-    ApplyGivensRight<DataType>(matrix(Eigen::all, Eigen::seqN(n - 2, 2)), entries.at(0),
+    ApplyGivensRight<DataType>(matrix(Eigen::lastN(3), Eigen::seqN(n - 2, 2)), entries.at(0),
                                entries.at(1));
     matrix(n - 3, n - 1) = 0;
     matrix(n - 1, n - 3) = 0;
