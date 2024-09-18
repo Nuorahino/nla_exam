@@ -14,6 +14,7 @@
 #include <type_traits>
 #include <vector>
 
+#include <easy/profiler.h>
 
 #include <eigen3/Eigen/Dense>
 
@@ -179,6 +180,7 @@ HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
 template <class DataType, bool is_symmetric, class Derived>
 inline std::enable_if_t<is_symmetric && std::is_arithmetic<DataType>::value, DataType>
 WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
+  EASY_FUNCTION();
   DataType d = (ak_matrix(0, 0) - ak_matrix(1, 1)) / static_cast<DataType>(2.0);
   if (d >= 0) {
     return ak_matrix(1, 1) + d - std::hypot(d, ak_matrix(1, 0));
@@ -192,6 +194,7 @@ WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
 template <class DataType, bool is_symmetric, class Derived>
 inline std::enable_if_t<!is_symmetric && std::is_arithmetic<DataType>::value, DataType>
 WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
+  EASY_FUNCTION();
   DataType d = (ak_matrix(0, 0) - ak_matrix(1, 1)) / static_cast<DataType>(2.0);
   // TODO (Georg): Find a way to compute this which avoids over and underflow
   if (d >= 0) {
@@ -205,6 +208,7 @@ WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
 template <class DataType, bool is_symmetric, class Derived>
 std::enable_if_t<IsComplex<DataType>(), DataType>
 WilkinsonShift(const Eigen::MatrixBase<Derived> &ak_matrix) {
+  EASY_FUNCTION();
   DataType trace = ak_matrix.trace();
   // TODO (Georg): Find a way to compute this which avoids over and underflow
   DataType tmp =
@@ -225,6 +229,7 @@ template <bool first, bool last, class DataType, class Derived>
 std::enable_if_t<std::is_arithmetic<DataType>::value, void>
 ApplyGivensTransformation(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c,
                 const DataType ak_s, const int aBegin) {
+  EASY_FUNCTION();
   Eigen::MatrixBase<Derived> &matrix = const_cast<Eigen::MatrixBase<Derived> &>(a_matrix);
   int k = aBegin;
   DataType c = ak_c;
@@ -268,6 +273,7 @@ template <class DataType, class Derived>
 std::enable_if_t<std::is_arithmetic<DataType>::value, void>
 ApplyGivensLeft(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c,
                 const DataType ak_s) {
+  EASY_FUNCTION();
   Eigen::MatrixBase<Derived> &matrix = const_cast<Eigen::MatrixBase<Derived> &>(a_matrix);
   for (int64_t i = 0; i < a_matrix.cols(); ++i) {
     typename Derived::Scalar tmp = matrix(0, i);
@@ -289,6 +295,7 @@ template <class DataType, class Derived>
 std::enable_if_t<std::is_arithmetic<DataType>::value, void>
 ApplyGivensRight(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c,
                  const DataType ak_s) {
+  EASY_FUNCTION();
   Eigen::MatrixBase<Derived> &matrix = const_cast<Eigen::MatrixBase<Derived> &>(a_matrix);
   for (int64_t i = 0; i < a_matrix.rows(); ++i) {
     typename Derived::Scalar tmp = matrix(i, 0);
@@ -310,6 +317,7 @@ template <class DataType, class Derived>
 void
 ApplyGivensLeft(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c,
                 const DataType ak_s, const DataType ak_sconj) {
+  EASY_FUNCTION();
   Eigen::MatrixBase<Derived> &matrix = const_cast<Eigen::MatrixBase<Derived> &>(a_matrix);
   for (int64_t i = 0; i < a_matrix.cols(); ++i) {
     typename Derived::Scalar tmp = matrix(0, i);
@@ -331,6 +339,7 @@ template <class DataType, class Derived>
 void
 ApplyGivensRight(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c,
                  const DataType ak_s, const DataType ak_sconj) {
+  EASY_FUNCTION();
   Eigen::MatrixBase<Derived> &matrix = const_cast<Eigen::MatrixBase<Derived> &>(a_matrix);
   for (int64_t i = 0; i < a_matrix.rows(); ++i) {
     typename Derived::Scalar tmp = matrix(i, 0);
@@ -350,6 +359,7 @@ ApplyGivensRight(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c
 template <class DataType>
 inline std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
 GetGivensEntries(const DataType &ak_a, const DataType &ak_b) {
+  EASY_FUNCTION();
   std::vector<DataType> res(3);
   if (std::abs(ak_a) <= std::numeric_limits<DataType>::epsilon()) {
     res.at(0) = 0;
@@ -377,6 +387,7 @@ GetGivensEntries(const DataType &ak_a, const DataType &ak_b) {
 template <class DataType>
 inline std::enable_if_t<IsComplex<DataType>(), std::vector<DataType>>
 GetGivensEntries(const DataType &ak_a, const DataType &ak_b) {
+  EASY_FUNCTION();
   typedef typename DataType::value_type real;
   std::vector<DataType> res(3);
   real absa = std::abs(ak_a);
@@ -398,6 +409,7 @@ GetGivensEntries(const DataType &ak_a, const DataType &ak_b) {
 template <class DataType>
 typename std::enable_if_t<std::is_arithmetic<DataType>::value, DataType>
 ExceptionalSingleShift() {
+  EASY_FUNCTION();
   std::random_device dev;
   std::mt19937 rng(dev());
   std::uniform_real_distribution<DataType> dist(-100, 100);
@@ -407,6 +419,7 @@ ExceptionalSingleShift() {
 template <class DataType>
 typename std::enable_if_t<!std::is_arithmetic<DataType>::value, DataType>
 ExceptionalSingleShift() {
+  EASY_FUNCTION();
   std::random_device dev;
   std::mt19937 rng(dev());
   std::uniform_real_distribution<typename DataType::value_type> dist(-100, 100);
@@ -423,6 +436,7 @@ template <class DataType, bool is_symmetric, typename Derived>
 void
 ImplicitQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
                const bool ak_exceptional_shift) {
+  EASY_FUNCTION();
   Eigen::MatrixBase<Derived> &matrix = const_cast<Eigen::MatrixBase<Derived> &>(a_matrix);
   int n = a_matrix.rows();
   DataType shift;
@@ -512,6 +526,7 @@ template <class Derived>
 typename std::enable_if_t<std::is_arithmetic<typename Derived::Scalar>::value,
                           std::vector<typename Derived::Scalar>>
 DoubleShiftParameter(const Eigen::MatrixBase<Derived> &ak_matrix) {
+  EASY_FUNCTION();
   typedef typename Derived::Scalar DataType;
   std::vector<DataType> res(2);
   res.at(0) = -ak_matrix.trace();
@@ -547,6 +562,7 @@ template <class Derived>
 void
 DoubleShiftQrStep(const Eigen::MatrixBase<Derived> &a_matrix,
                   const bool ak_exceptional_shift) {
+  EASY_FUNCTION();
   typedef Eigen::MatrixBase<Derived> MatrixType;
   typedef Eigen::Matrix<typename Derived::Scalar, -1, -1> Matrix;
   MatrixType &matrix = const_cast<MatrixType &>(a_matrix);
@@ -600,6 +616,7 @@ template <class Derived>
 int
 DeflateDiagonal(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin, int &a_end,
                 const double ak_tol = 1e-12) {
+  EASY_FUNCTION();
   int state = 2;
   for (int i = a_end; i > a_begin; --i) {
     if (std::abs(a_matrix(i, i - 1)) <=
@@ -634,6 +651,7 @@ template <class Derived>
 int
 DeflateSchur(const Eigen::MatrixBase<Derived> &a_matrix, int &a_begin, int &a_end,
              const double ak_tol = 1e-12) {
+  EASY_FUNCTION();
   int state = 2;
   for (int i = a_end; i > a_begin; --i) {
     if (std::abs(a_matrix(i, i - 1)) <=
@@ -670,6 +688,7 @@ template <class DataType, class Derived>
 std::vector<DataType>
 CalcEigenvaluesFromSchur(const Eigen::MatrixBase<Derived> &ak_matrix,
                          const bool ak_matrix_is_diagonal = false) {
+  EASY_FUNCTION();
   std::vector<DataType> res(ak_matrix.rows());
   if (ak_matrix_is_diagonal || ak_matrix.rows() == 1) {
     for (int i = 0; i < ak_matrix.rows(); ++i) {
@@ -716,6 +735,7 @@ template <class DataType, bool ak_is_hermitian, class Derived>
 std::vector<DataType>
 QrIterationHessenberg(const Eigen::MatrixBase<Derived> &a_matrix,
                       const double ak_tol = 1e-12) {
+  EASY_FUNCTION();
   // generell definitions
   typedef Eigen::MatrixBase<Derived> MatrixType;
   typedef Eigen::Block<Derived, -1, -1, false> StepMatrix;
@@ -777,6 +797,7 @@ template <
     class ComplexDataType = typename EvType<IsComplex<DataType>(), DataType>::type>
 std::vector<ComplexDataType>
 QrMethod(const Eigen::MatrixBase<Derived> &ak_matrix, const double ak_tol = 1e-12) {
+  EASY_FUNCTION();
   assert(ak_matrix.rows() == ak_matrix.cols());
   static_assert(std::is_convertible<typename Derived::Scalar, DataType>::value,
                 "Matrix Elements must be convertible to DataType");

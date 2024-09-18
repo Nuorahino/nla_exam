@@ -2,6 +2,7 @@
 #include <complex>
 
 #include <eigen3/Eigen/Dense>
+#include <easy/profiler.h>
 
 #include "../../include/qr.hh"
 #include "../lapack/lapack_interface_impl.hh"
@@ -38,6 +39,7 @@ int main(int argc, char** argv) {
   Eigen::MatrixXd test(size, size);
   CreateStdRandomTri(test);
 
+  EASY_PROFILER_ENABLE;
   auto start = std::chrono::steady_clock::now();
   int n = 10;
   for (int i = 0; i < n; ++i) {
@@ -45,6 +47,7 @@ int main(int argc, char** argv) {
   }
   auto end = std::chrono::steady_clock::now();
   std::chrono::duration<double> runtime = (end - start);
+  profiler::dumpBlocksToFile("test.prof");
   std::cout << "Runtime for: " << n << " is: " << runtime.count() << std::endl;
 
   return 0;
