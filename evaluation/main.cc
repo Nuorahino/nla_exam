@@ -32,13 +32,8 @@ int main(int argc, char** argv) {
   }
 
 
-//  std::vector<int> testsizes;
-//  testsizes = {10, 50, 100, 1000};
-
-  //std::cout << "Testing for: " << testsizes << std::endl;
   std::cout << "Testing for: " << start << " to " << max_size << std::endl;
   for( int i = start; i <= max_size; ++i ) {
-  //for (int i : testsizes) {
 #ifdef FULL
 #ifdef REAL_SYMM
     RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-12);

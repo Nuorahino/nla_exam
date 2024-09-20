@@ -28,6 +28,7 @@ int main(int argc, char** argv) {
 
   //auto start = std::chrono::steady_clock::now();
   for (int i = 0; i < 10; ++i) {
+    //std::vector<std::complex<double>> estimate = nla_exam::QrMethod<true>(mat, 1e-12);
     std::vector<std::complex<double>> estimate = nla_exam::QrMethod<true>(mat, 1e-12);
   }
   //auto end = std::chrono::steady_clock::now();

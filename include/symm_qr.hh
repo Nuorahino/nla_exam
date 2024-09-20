@@ -82,7 +82,6 @@ DeflateDiagonal(Matrix &a_matrix, int &a_begin, int &a_end,
  * Return: Vector containing {c, s}
  */
 template <class DataType>
-//inline std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
 std::enable_if_t<std::is_arithmetic<DataType>::value, std::vector<DataType>>
 GetGivensEntries(const DataType &ak_a, const DataType &ak_b) {
   std::vector<DataType> res(3);
@@ -176,7 +175,6 @@ ImplicitQrStep(Matrix &matrix,
  * return: unordered vector of eigenvalues
  */
 template <class DataType, bool is_hermitian, class matrix>
-//std::enable_if_t<std::is_arithmetic<typename matrix::Scalar>::value && is_hermitian, std::vector<DataType>>
 std::enable_if_t<std::is_arithmetic<typename ElementType<matrix>::type>::value && is_hermitian, std::vector<DataType>>
 QrIterationHessenberg(matrix &a_matrix,
                       const double ak_tol = 1e-12) {
@@ -191,7 +189,6 @@ QrIterationHessenberg(matrix &a_matrix,
       end = begin - 1;
       begin = 0;
     } else {
-      //ImplicitQrStep<typename matrix::Scalar, is_hermitian, matrix>(a_matrix, begin, end);
       ImplicitQrStep<typename ElementType<matrix>::type, is_hermitian, matrix>(a_matrix, begin, end);
     }
   }
@@ -200,13 +197,10 @@ QrIterationHessenberg(matrix &a_matrix,
 
 template <
     bool IsHermitian, typename Matrix,
-    //class DataType = typename DoubleType<IsComplex<typename Matrix::Scalar>()>::type,
     class DataType = typename DoubleType<IsComplex<typename ElementType<Matrix>::type>()>::type,
     class ComplexDataType = typename EvType<IsComplex<DataType>(), DataType>::type>
 inline std::enable_if_t<IsHermitian, std::vector<ComplexDataType>>
 QrMethod(const Matrix &ak_matrix, const double ak_tol = 1e-12) {
-  //assert(ak_matrix.rows() == ak_matrix.cols());
-  //static_assert(std::is_convertible<typename Matrix::Scalar, DataType>::value,
   static_assert(std::is_convertible<typename ElementType<Matrix>::type, DataType>::value,
                 "Matrix Elements must be convertible to DataType");
   Matrix A = ak_matrix;  // Do not change the input matrix

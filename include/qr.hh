@@ -14,7 +14,6 @@
 #include <type_traits>
 #include <vector>
 
-#include <easy/profiler.h>
 
 #include <eigen3/Eigen/Dense>
 

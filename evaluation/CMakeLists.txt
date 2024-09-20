@@ -19,4 +19,3 @@ target_link_libraries(evaluate Blaze)
 
 
 #target_link_libraries(evaluate QR)
-#target_compile_options(evaluate PRIVATE -O3 -march=native)

@@ -5,30 +5,12 @@
 #include <string>
 
 //#ifdef LAPACK
-//#define VERSION "LAPACK"
 //#include "../lapack/lapack_interface_impl.hh"
 //#endif
-//#ifdef EIGEN
-//#define VERSION "EIGEN"
-//#endif
-//#ifdef TWO_VEC
-//#define VERSION "elementwise2"
-//#endif
-//#ifdef ONE_VEC
-//#define VERSION "elementwise1"
-//#endif
-//#ifdef NESTED
-//#define VERSION "nested"
-//#endif
-//#ifdef WRAPPED
-//#define VERSION "wrapped"
-//#endif
 #ifdef BLAZE
-//#define VERSION "blaze"
 #include <blaze/Math.h>
 #endif
 #ifdef ARMADILLO
-//#define VERSION "armadillo"
 #include <armadillo>
 #endif
 
@@ -206,56 +188,5 @@ void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_ei
   }
   RunTestNew(a_summary_file, arma_mat, res, "armadillo", ak_size, ak_seed, ak_is_hermitian, ak_tol);
 #endif
-
-
-//  auto start = std::chrono::steady_clock::now();
-//  std::vector<C> estimate;
-//#ifdef LAPACK
-//  tridiagonal_matrix2 t_mat{M.real()};
-//#endif
-
-//  if (ak_is_hermitian) {
-//#ifdef LAPACK
-//  estimate = CalculateTridiagonalEigenvalues(t_mat.diag, t_mat.sdiag);
-//#else
-//#ifdef EIGEN
-//    Eigen::SelfAdjointEigenSolver<MatrixType> es(M, false);
-//    test = es.eigenvalues();
-//    if(es.info()) std::cout << "failed" << std::endl;
-//    estimate = ConvertToVec(test);
-//#else
-//    estimate = nla_exam::QrMethod<true>(t_mat, ak_tol);
-//#endif
-//#endif
-//  } else {
-//#ifdef EIGEN
-//    if constexpr (IsComplex<typename MatrixType::Scalar>()) {
-//      Eigen::ComplexEigenSolver<MatrixType> es(M, false);
-//      test = es.eigenvalues();
-//      if(es.info()) std::cout << "failed" << std::endl;
-//    } else {
-//      Eigen::EigenSolver<MatrixType> es(M, false);
-//      test = es.eigenvalues();
-//      if(es.info()) std::cout << "failed" << std::endl;
-//    }
-//    estimate = ConvertToVec(test);
-//#else
-//    //estimate = nla_exam::QrMethod<false>(M, ak_tol);
-//#endif
-//  }
-//
-//  auto end = std::chrono::steady_clock::now();
-//  std::chrono::duration<double> runtime = (end - start);
-//
-//  std::sort(estimate.begin(), estimate.end(), [](C& a, C& b) {
-//      return LesserEv(a, b);});
-//
-//  std::string prefix = GetVariantString(ak_size, ak_is_hermitian,
-//      IsComplex<typename MatrixType::Scalar>(), ak_seed, ak_tol, runtime);
-//  std::vector<double> error = GetApproximationError(estimate, res);
-//  PrintSummary(a_summary_file, prefix, error);
-//  //PrintEigenvalues(a_eigenvalue_file, prefix, estimate, error);
-
 }
-
 #endif

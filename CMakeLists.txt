@@ -13,11 +13,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 #add_library(QR INTERFACE include/qr.hh)
 #target_compile_options(QR INTERFACE -O3 -msse -msse2 -DIMPLICIT -DSINGLE ${debug_options})
 ##target_compile_options(QR INTERFACE -Wall -Wextra -Wpedantic -Wfloat-equal -Wshadow -Wunreachable-code -Wdouble-promotion -Wmisleading-indentation)
-#
-#find_package(Eigen3 3.3 REQUIRED)
-#target_link_libraries(QR INTERFACE Eigen3::Eigen)
-#find_package(easy_profiler REQUIRED)
-#target_link_libraries(QR INTERFACE easy_profiler)
 
 add_subdirectory(evaluation)
 add_subdirectory(tests)
