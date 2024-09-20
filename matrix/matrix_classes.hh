@@ -63,10 +63,9 @@ class tridiagonal_matrix2{
 
 template<class DT>
 class tridiagonal_matrix_nested{
-  private:
+  public:
     std::vector<std::array<DT, 2>> data;
 
-  public:
     typedef DT Scalar;
 
     tridiagonal_matrix_nested() = default;
