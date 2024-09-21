@@ -4,6 +4,7 @@
 #include <type_traits>
 #include <cmath> // for std::copysign
 #include <vector>
+#include <iostream>
 
 
 #include "helpfunctions.hh"
@@ -90,8 +91,10 @@ GetGivensEntries(const DataType &ak_a, const DataType &ak_b, std::array<DataType
   } else {
     DataType r = std::hypot(ak_a, ak_b);
     entries.at(0) = std::abs(ak_a) / r;
-    entries.at(1) = ak_b / r * DataType{std::copysign( DataType{1}, ak_a)};
-    entries.at(2) = entries.at(1);
+    entries.at(2) = r * DataType{std::copysign( DataType{1}, ak_a)};
+    //entries.at(1) = ak_b / r * DataType{std::copysign( DataType{1}, ak_a)};
+    entries.at(1) = ak_b / entries.at(2);
+    //entries.at(2) = entries.at(1);
     // TODO(Georg): instead of copysign maybe use a test with >
                                   // 0 to do this, as this always converts to float
   }
@@ -102,32 +105,31 @@ GetGivensEntries(const DataType &ak_a, const DataType &ak_b, std::array<DataType
 template <bool first, bool last, bool is_symmetric,
   class DataType, class Matrix>
 inline std::enable_if_t<std::is_arithmetic<DataType>::value && is_symmetric, void>
-ApplyGivensTransformation(Matrix &matrix, const DataType &ak_c,
-                const DataType &ak_s, const int aBegin, DataType &buldge) {
+ApplyGivensTransformation(Matrix &matrix, const std::array<DataType, 3> &entries, const int aBegin, DataType &buldge) {
     int k = aBegin;
-    DataType c = ak_c;
-    DataType s = ak_s;
-    DataType x1 = c * c * matrix(k, k) + s * s * matrix(k+1,k+1) + 2 * c * s * matrix(k, k+1);
-    DataType a2 = c * -s * matrix(k,k) - s * s * matrix(k, k+1) + c * c * matrix(k, k+1) + s * c * matrix(k+1, k+1);
-    DataType x2 = c * c * matrix(k+1, k+1) + s * s * matrix(k,k) - 2 * c * s * matrix(k+1, k);
+    DataType ak_c = entries.at(0);
+    DataType ak_s = entries.at(1);
+    DataType ss = ak_s * ak_s;
+    DataType cs = ak_c * ak_s;
+    DataType cc = ak_c * ak_c;
+    DataType csn = cs * (2 * matrix(k+1, k));
+
+    matrix(k+1, k) = (cc - ss) * matrix(k+1, k) + cs * (matrix(k+1, k+1) - matrix(k,k)) ;
+    DataType x1 = cc * matrix(k, k) + ss * matrix(k+1,k+1) + csn;
+    matrix(k+1, k+1) = cc * matrix(k+1, k+1) + ss * matrix(k,k) - csn;
+    matrix(k, k) = x1;
 
 if constexpr (!first) {
-    DataType a1 = c * matrix(k, k - 1) + s * buldge;
-    matrix(k-1, k) = a1;
-    matrix(k, k-1) = a1;
+  //matrix(k, k - 1) = entries[2];
+    matrix(k, k-1) *= ak_c;
+    matrix(k, k-1) += ak_s * buldge;
 }
 
 if constexpr (!last) {
-    buldge = s * matrix(k+2, k+1);
-    DataType a3 = c * matrix(k+1, k+2);
-    matrix(k+1, k+2) = a3;
-    matrix(k+2, k+1) = a3;
+    buldge = ak_s * matrix(k+2, k+1);
+    matrix(k+2, k+1) *= ak_c;
 }
 
-    matrix(k+1, k) = a2;
-    matrix(k, k+1) = a2;
-    matrix(k, k) = x1;
-    matrix(k+1, k+1) = x2;
 
   return;
 }
@@ -151,17 +153,17 @@ ImplicitQrStep(Matrix &matrix,
   // innitial step
   DataType buldge = 0;
   if (n == 2) { //
-    ApplyGivensTransformation<true, true, true, DataType>(matrix, entries.at(0), entries.at(1), aBegin, buldge);
+    ApplyGivensTransformation<true, true, true, DataType>(matrix, entries, aBegin, buldge);
     return;
   }
-  ApplyGivensTransformation<true, false, true, DataType>(matrix, entries.at(0), entries.at(1), aBegin, buldge);
+  ApplyGivensTransformation<true, false, true, DataType>(matrix, entries, aBegin, buldge);
   // buldge chasing
   for (int k = aBegin + 1; k < aEnd - 1; ++k) {
     GetGivensEntries<>(matrix(k, k - 1), buldge, entries);
-    ApplyGivensTransformation<false, false, true, DataType>(matrix, entries.at(0), entries.at(1), k, buldge); // this one is not inline
+    ApplyGivensTransformation<false, false, true, DataType>(matrix, entries, k, buldge); // this one is not inline
   }
   GetGivensEntries<>(matrix(aEnd - 1, aEnd - 2), buldge, entries);
-  ApplyGivensTransformation<false, true, true, DataType>(matrix, entries.at(0), entries.at(1), aEnd - 1, buldge);
+  ApplyGivensTransformation<false, true, true, DataType>(matrix, entries, aEnd - 1, buldge);
 
   return;
 }
