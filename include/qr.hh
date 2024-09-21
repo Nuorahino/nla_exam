@@ -305,8 +305,8 @@ ApplyGivensRight(const Eigen::MatrixBase<Derived> &a_matrix, const DataType ak_c
 template <class DataType>
 inline std::enable_if_t<IsComplex<DataType>(), std::vector<DataType>>
 GetGivensEntries(const DataType &ak_a, const DataType &ak_b) {
+  std::vector<DataType> res;
   typedef typename DataType::value_type real;
-  std::vector<DataType> res(3);
   real absa = std::abs(ak_a);
   real absb = std::abs(ak_b);
   if (absa <= std::numeric_limits<typename DataType::value_type>::epsilon()) {
