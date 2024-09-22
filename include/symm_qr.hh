@@ -88,6 +88,7 @@ GetGivensEntries(const DataType &ak_a, const DataType &ak_b, std::array<DataType
   if (std::abs(ak_a) <= std::numeric_limits<DataType>::epsilon()) {
     entries.at(0) = 0;
     entries.at(1) = 1;
+    entries.at(2) = ak_a;
   } else {
     DataType r = std::hypot(ak_a, ak_b);
     entries.at(0) = std::abs(ak_a) / r;
@@ -118,9 +119,7 @@ ApplyGivensTransformation(Matrix &matrix, const std::array<DataType, 3> &entries
     matrix(k, k) = x1;
 
 if constexpr (!first) {
-  //matrix(k, k - 1) = entries[2];
-    matrix(k, k-1) *= ak_c;
-    matrix(k, k-1) += ak_s * buldge;
+  matrix(k, k - 1) = entries.at(2);
 }
 
 if constexpr (!last) {
