@@ -6,6 +6,9 @@
 #include <vector>
 #include <iostream>
 
+#ifdef USELAPACK
+#include "../lapack/lapack_interface_impl.hh"
+#endif
 
 #include "helpfunctions.hh"
 
@@ -82,6 +85,13 @@ DeflateDiagonal(Matrix &a_matrix, int &a_begin, int &a_end,
  * - ak_b: entry to eliminate
  * Return: Vector containing {c, s}
  */
+#ifdef USELAPACK
+template <class DataType>
+std::enable_if_t<std::is_arithmetic<DataType>::value, void>
+GetGivensEntries(const DataType &ak_a, const DataType &ak_b, std::array<DataType, 3> &entries) {
+  return compute_givens_parameter(ak_a, ak_b, entries);
+}
+#else
 template <class DataType>
 std::enable_if_t<std::is_arithmetic<DataType>::value, void>
 GetGivensEntries(const DataType &ak_a, const DataType &ak_b, std::array<DataType, 3> &entries) {
@@ -99,6 +109,7 @@ GetGivensEntries(const DataType &ak_a, const DataType &ak_b, std::array<DataType
   }
   return;
 }
+#endif
 
 
 template <bool first, bool last, bool is_symmetric,
@@ -196,7 +207,7 @@ QrIterationHessenberg(matrix &a_matrix,
 
 template <
     bool IsHermitian, typename Matrix,
-    class DataType = typename DoubleType<IsComplex<typename ElementType<Matrix>::type>()>::type,
+    class DataType = typename ElementType<Matrix>::type,
     class ComplexDataType = typename EvType<IsComplex<DataType>(), DataType>::type>
 inline std::enable_if_t<IsHermitian, std::vector<ComplexDataType>>
 QrMethod(const Matrix &ak_matrix, const double ak_tol = 1e-12) {

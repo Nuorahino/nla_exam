@@ -25,44 +25,42 @@ int main(int argc, char** argv) {
   int max_size = 1000;
   int start = 1;
   int seed = 28;
+  double tol = 1e-12;
   if(argc == 4) {
     start = atoi(argv[1]);
     max_size = atoi(argv[2]);
     seed = atoi(argv[3]);
   }
+  if(argc == 5) {
+    start = atoi(argv[1]);
+    max_size = atoi(argv[2]);
+    seed = atoi(argv[3]);
+    tol = std::stod(argv[4]);
+  }
+  std::cout << tol << std::endl;
 
 
   std::cout << "Testing for: " << start << " to " << max_size << std::endl;
   for( int i = start; i <= max_size; ++i ) {
-#ifdef FULL
+
 #ifdef REAL_SYMM
-    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-12);
+    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, tol);
 #endif
-#ifdef REAL_NON_SYMM
-    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, false, 1e-12);
+#ifdef LONGREAL_SYMM
+    RunTest<Eigen::Matrix<long double, -1, -1>>(summary_file, eigenvalue_file, i, seed, true, tol);
 #endif
-#ifdef COMPLEX_SYMM
-    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, true, 1e-12);
-#endif
-#ifdef COMPLEX_NON_SYMM
-    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, false, 1e-12);
-#endif
+#ifdef FLOAT_SYMM
+    RunTest<Eigen::MatrixXf>(summary_file, eigenvalue_file, i, seed, true, tol);
 #endif
 
-#ifdef HALF
-#ifdef REAL_SYMM
-    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, true, 1e-8);
-#endif
 #ifdef REAL_NON_SYMM
-    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, false, 1e-8);
+    RunTest<Eigen::MatrixXd>(summary_file, eigenvalue_file, i, seed, false, tol);
 #endif
 #ifdef COMPLEX_SYMM
-    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, true, 1e-8);
+    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, true, tol);
 #endif
 #ifdef COMPLEX_NON_SYMM
-    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, false, 1e-8);
-#endif
-
+    RunTest<Eigen::MatrixXcd>(summary_file, eigenvalue_file, i, seed, false, tol);
 #endif
   }
   return 1;

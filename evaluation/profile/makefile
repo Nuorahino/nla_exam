@@ -1,6 +1,7 @@
 CC=g++
-#CCFLAGS=-fno-trapping-math -fno-math-errno -fno-signed-zeros -fno-builtin -DNDEBUG -msse -msse2 -mavx -O3 -pg
-CCFLAGS=-DNDEBUG -msse -msse2 -mavx -mavx2 -O3
+CCFLAGS=-fno-trapping-math -fno-math-errno -fno-signed-zeros -fno-builtin -DNDEBUG -msse -msse2 -mavx -O3 -pg
+CCFLAGS=-DNDEBUG -DUSELAPACK -llapack -msse -msse2 -mavx -mavx2 -O3
+#CCFLAGS=-DNDEBUG -msse -msse2 -mavx -mavx2 -O3
 INCLUDEDIR=../../include/
 
 main: profile.cc

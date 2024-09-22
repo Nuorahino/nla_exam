@@ -165,7 +165,7 @@ MatrixType CreateUnitaryMatrix(const int ak_size,
   MatrixType A(ak_size, ak_size);
   Eigen::MatrixXi intMatrix = Eigen::MatrixXi::Random(ak_size, ak_size);
   intMatrix = intMatrix + intMatrix.transpose().eval();
-  A = intMatrix.cast<double>();
+  A = intMatrix.cast<typename ElementType<MatrixType>::type>();
   Eigen::HouseholderQR<MatrixType> qr(A);
   return qr.householderQ();
 }
@@ -270,9 +270,9 @@ CreateRandom(const int ak_size, const bool is_symm,
     A = CreateStdRandomNormalSchur<MatrixType>(ak_size, std::rand());
     for (int i = 0; i < ak_size-1; ++i) {
       T trace = A(Eigen::seq(i, i+1), Eigen::seq(i, i+1)).trace();
-      T tmp = std::sqrt(trace * trace - 4.0 * A(Eigen::seq(i, i+1), Eigen::seq(i, i+1)).determinant());
-      T ev1 = (trace + tmp) / 2.0;
-      T ev2 = (trace - tmp) / 2.0;
+      T tmp = std::sqrt(trace * trace - T{4.0} * A(Eigen::seq(i, i+1), Eigen::seq(i, i+1)).determinant());
+      T ev1 = (trace + tmp) / T{2.0};
+      T ev2 = (trace - tmp) / T{2.0};
       res.at(i) = ev1;                                                         // First eigenvalue
       ++i;
       res.at(i) = ev2;                                                         // Second eigenvalue

@@ -147,31 +147,32 @@ template<class MatrixType>
 void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_eigenvalue_file,
     const int ak_size, const int ak_seed, const bool ak_is_hermitian,
     const double ak_tol = 1e-12) {
-  typedef std::complex<double> C;
+  typedef typename ElementType<MatrixType>::type DataType;
+  typedef typename EvType<IsComplex<DataType>(), DataType>::type  C;
   MatrixType M;
   std::vector<C> res;
-  std::tie(M, res) = CreateRandom<MatrixType>(ak_size, ak_is_hermitian, ak_seed);
+  std::tie(M, res) = CreateRandom<MatrixType, C>(ak_size, ak_is_hermitian, ak_seed);
 
   nla_exam::HessenbergTransformation<>(M, ak_is_hermitian);
 
 #ifdef TWO_VEC
-  tridiagonal_matrix2 twovec_mat{M.real()};
+  tridiagonal_matrix2<DataType> twovec_mat{M.real()};
   RunTestNew(a_summary_file, twovec_mat, res, "elementwise 2", ak_size, ak_seed, ak_is_hermitian, ak_tol);
 #endif
 #ifdef ONE_VEC
-  tridiagonal_matrix onevec_mat{M.real()};
+  tridiagonal_matrix<DataType> onevec_mat{M.real()};
   RunTestNew(a_summary_file, onevec_mat, res, "elementwise 1", ak_size, ak_seed, ak_is_hermitian, ak_tol);
 #endif
 #ifdef NESTED
-  tridiagonal_matrix_nested nested_mat{M.real()};
+  tridiagonal_matrix_nested<DataType> nested_mat{M.real()};
   RunTestNew(a_summary_file, nested_mat, res, "nested", ak_size, ak_seed, ak_is_hermitian, ak_tol);
 #endif
 #ifdef WRAPPED
-  EigenWrapper<Eigen::MatrixXd> wrapped_mat{M.real()};
+  EigenWrapper<Eigen::Matrix<DataType, -1, -1>> wrapped_mat{M.real()};
   RunTestNew(a_summary_file, wrapped_mat, res, "wrapped", ak_size, ak_seed, ak_is_hermitian, ak_tol);
 #endif
 #ifdef BLAZE
-  blaze::DynamicMatrix<double> blaze_mat(M.rows(), M.rows());
+  blaze::DynamicMatrix<DataType> blaze_mat(M.rows(), M.rows());
   for(int i = 0; i < M.rows(); ++i) {
     for(int j = 0; j < M.rows(); ++j) {
       blaze_mat(i, j) = M(i, j);
@@ -180,13 +181,44 @@ void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_ei
   RunTestNew(a_summary_file, blaze_mat, res, "blaze", ak_size, ak_seed, ak_is_hermitian, ak_tol);
 #endif
 #ifdef ARMADILLO
-  arma::Mat<double> arma_mat(M.rows(), M.rows());
+  arma::Mat<DataType> arma_mat(M.rows(), M.rows());
   for(int i = 0; i < M.rows(); ++i) {
     for(int j = 0; j < M.rows(); ++j) {
       arma_mat(i, j) = M(i, j);
     }
   }
   RunTestNew(a_summary_file, arma_mat, res, "armadillo", ak_size, ak_seed, ak_is_hermitian, ak_tol);
+#endif
+  std::vector<C> estimate;
+#ifdef EIGEN
+  {
+    auto start = std::chrono::steady_clock::now();
+    Eigen::SelfAdjointEigenSolver<MatrixType> es(M, false);
+    auto end = std::chrono::steady_clock::now();
+    std::chrono::duration<DataType> runtime = (end - start);
+    Eigen::Vector<C, -1> test = es.eigenvalues();
+    if(es.info()) std::cout << "failed" << std::endl;
+    estimate = ConvertToVec(test);
+
+    std::string prefix = GetVariantString("Eigen", ak_size, ak_is_hermitian,
+        IsComplex<typename ElementType<MatrixType>::type>(), ak_seed, ak_tol, runtime);
+    std::vector<double> error = GetApproximationError(estimate, res);
+    PrintSummary(a_summary_file, prefix, error);
+  }
+#endif
+#ifdef LAPACK
+  {
+    tridiagonal_matrix2 temp_mat{M.real()};
+    auto start = std::chrono::steady_clock::now();
+    estimate = CalculateTridiagonalEigenvalues(temp_mat.diag, temp_mat.sdiag);
+    auto end = std::chrono::steady_clock::now();
+    std::chrono::duration<double> runtime = (end - start);
+
+    std::string prefix = GetVariantString("LAPACK", ak_size, ak_is_hermitian,
+        IsComplex<typename ElementType<MatrixType>::type>(), ak_seed, ak_tol, runtime);
+    std::vector<double> error = GetApproximationError(estimate, res);
+    PrintSummary(a_summary_file, prefix, error);
+  }
 #endif
 }
 #endif
