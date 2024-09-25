@@ -88,32 +88,59 @@ CalculateTridiagonalEigenvalues(std::vector<DataType> diag, std::vector<DataType
 //
 //  return std::forward_as_tuple(H, eval);
 //}
-//
-//
-//template<class Derived, class Mat = Eigen::MatrixXd>
-//Mat CreateHessenberg(const Eigen::MatrixBase<Derived>& ak_matrix) {
-//  Mat H = ak_matrix;
-//
-//  // LAPACK Variables
-//  int N = ak_matrix.rows();         // Size of Matrix
-//  int ILO = 1;                      // default
-//  int IHI = N;                      // default
-//  double* A = H.data();             // Matrix
-//  int LDA = N;                      // is square Matrix
-//  double* TAU = new double[N-1];    // Output scalar factors of elementary reflections
-//  int LWORK = 64 * N;               // Blocksize times N, value currently chosen arbitrarily
-//  double* WORK = new double[LWORK]; // Workspace
-//  int INFO;                         // Output 0 on success
-//
-//
-//  dgehrd_(&N, &ILO, &IHI, A, &LDA, TAU, WORK, &LWORK, &INFO);
-//  std::cout << "INFO: " << INFO << std::endl;
-//
-//  delete[] WORK;
-//  delete[] TAU;
-//  return H;
-//}
-//
+
+template<class Derived, class Mat = Eigen::MatrixXd>
+Mat CreateTridiagonal(const Eigen::MatrixBase<Derived>& ak_matrix) {
+  Mat H = ak_matrix;
+  Mat M = ak_matrix;
+
+  // LAPACK Variables
+  char UPLO = 'L';                  // Storage in Lower part of the matrix
+  int N = ak_matrix.rows();         // Size of Matrix
+  double* A = M.data();             // Matrix
+  int LDA = N;                      // is square Matrix
+//  double* D = new double[N];        // Diagonal entries
+//  double* E = new double[N - 1];    // off-Diagonal entries
+  double* D = H.diagonal(0).data();        // Diagonal entries
+  double* E = H.diagonal(-1).data();    // off-Diagonal entries
+  double* TAU = new double[N-1];    // Output scalar factors of elementary reflections
+  int LWORK = 64 * N;               // Blocksize times N, value currently chosen arbitrarily
+  double* WORK = new double[LWORK]; // Workspace
+  int INFO;                         // Output 0 on success
+
+
+  dsytrd_(&UPLO, &N, A, &LDA, D, E, TAU, WORK, &LWORK, &INFO);
+  std::cout << "INFO: " << INFO << std::endl;
+
+  delete[] WORK;
+  delete[] TAU;
+  return H;
+}
+
+template<class Derived, class Mat = Eigen::MatrixXd>
+Mat CreateHessenberg(const Eigen::MatrixBase<Derived>& ak_matrix) {
+  Mat H = ak_matrix;
+
+  // LAPACK Variables
+  int N = ak_matrix.rows();         // Size of Matrix
+  int ILO = 1;                      // default
+  int IHI = N;                      // default
+  double* A = H.data();             // Matrix
+  int LDA = N;                      // is square Matrix
+  double* TAU = new double[N-1];    // Output scalar factors of elementary reflections
+  int LWORK = 64 * N;               // Blocksize times N, value currently chosen arbitrarily
+  double* WORK = new double[LWORK]; // Workspace
+  int INFO;                         // Output 0 on success
+
+
+  dgehrd_(&N, &ILO, &IHI, A, &LDA, TAU, WORK, &LWORK, &INFO);
+  std::cout << "INFO: " << INFO << std::endl;
+
+  delete[] WORK;
+  delete[] TAU;
+  return H;
+}
+
 //template<class Derived, class Mat = Eigen::MatrixXd>
 //double* CalcEigenvaluesFromHessenberg(const Eigen::MatrixBase<Derived>& ak_matrix,
 //                                  const double* ak_real_part_evs,
@@ -281,27 +308,27 @@ void compute_givens_parameter(DataType a, DataType b, std::array<DataType, 3> &e
 //  return apply_givens_left(ak_matrix, k, k + 1, c, s);
 //}
 //
-//template <class DataType, class Derived>
-//std::tuple<Eigen::Matrix<DataType, -1, -1>, DataType>
-//get_householder(const Eigen::MatrixBase<Derived>& ak_v) {
-//  int n = ak_v.rows();
-//  DataType alpha = ak_v(0);
-//  Eigen::Vector<DataType, -1> v = ak_v(Eigen::seqN(1, n-1));
-//  DataType* vd = v.data();
-//  int incrx = 1;
-//  DataType tau;
-//  if constexpr (std::is_same<DataType, double>::value) {
-//    dlarfg_(&n, &alpha, vd, &incrx, &tau);
-//  } else if constexpr (std::is_same<DataType, float>::value) {
-//    slarfg_(&n, &alpha, vd, &incrx, &tau);
-//  } else if constexpr (std::is_same<DataType, std::complex<float>>::value) {
-//    clarfg_(&n, &alpha, vd, &incrx, &tau);
-//  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
-//    zlarfg_(&n, &alpha, vd, &incrx, &tau);
-//  }
-//  return {v, tau};
-//}
-//
+template <class DataType, class Derived>
+std::tuple<Eigen::Matrix<DataType, -1, -1>, DataType>
+get_householder(const Eigen::MatrixBase<Derived>& ak_v) {
+  int n = ak_v.rows();
+  DataType alpha = ak_v(0);
+  Eigen::Vector<DataType, -1> v = ak_v(Eigen::seqN(1, n-1));
+  DataType* vd = v.data();
+  int incrx = 1;
+  DataType tau;
+  if constexpr (std::is_same<DataType, double>::value) {
+    dlarfg_(&n, &alpha, vd, &incrx, &tau);
+  } else if constexpr (std::is_same<DataType, float>::value) {
+    slarfg_(&n, &alpha, vd, &incrx, &tau);
+  } else if constexpr (std::is_same<DataType, std::complex<float>>::value) {
+    clarfg_(&n, &alpha, vd, &incrx, &tau);
+  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
+    zlarfg_(&n, &alpha, vd, &incrx, &tau);
+  }
+  return {v, tau};
+}
+
 //template <class DataType, class Derived, class Derived2>
 //Eigen::Matrix<DataType, -1, -1>
 //apply_householder_left(const Eigen::MatrixBase<Derived>& ak_matrix, const Eigen::MatrixBase<Derived2>& ak_w, DataType tau) {

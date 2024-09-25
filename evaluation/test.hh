@@ -153,8 +153,33 @@ void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_ei
   std::vector<C> res;
   std::tie(M, res) = CreateRandom<MatrixType, C>(ak_size, ak_is_hermitian, ak_seed);
 
-  nla_exam::HessenbergTransformation<>(M, ak_is_hermitian);
+  std::chrono::duration<double> runtime;
+  std::vector<C> estimate;
+  auto start = std::chrono::steady_clock::now();
+  nla_exam::HessenbergTransformation<true, true>(M, ak_is_hermitian);
+  tridiagonal_matrix_nested<DataType> nested_mat{M.real()};
+  estimate = nla_exam::QrMethod<true>(nested_mat, ak_tol);
+  auto end = std::chrono::steady_clock::now();
+  runtime = (end - start);
 
+  std::string prefix = GetVariantString("Hessenberg basic", ak_size, ak_is_hermitian,
+      IsComplex<typename ElementType<MatrixType>::type>(), ak_seed, ak_tol, runtime);
+  std::vector<double> error = GetApproximationError(estimate, res);
+  PrintSummary(a_summary_file, prefix, error);
+
+//#ifdef REAL_NON_SYMM
+//  std::chrono::duration<double> runtime;
+//  std::vector<C> estimate;
+//  auto start = std::chrono::steady_clock::now();
+//  estimate = nla_exam::QrMethod<false>(M, ak_tol);
+//  auto end = std::chrono::steady_clock::now();
+//  runtime = (end - start);
+//
+//  std::string prefix = GetVariantString("Base double shift", ak_size, ak_is_hermitian,
+//      IsComplex<typename ElementType<MatrixType>::type>(), ak_seed, ak_tol, runtime);
+//  std::vector<double> error = GetApproximationError(estimate, res);
+//  PrintSummary(a_summary_file, prefix, error);
+//#else
 #ifdef TWO_VEC
   tridiagonal_matrix2<DataType> twovec_mat{M.real()};
   RunTestNew(a_summary_file, twovec_mat, res, "elementwise 2", ak_size, ak_seed, ak_is_hermitian, ak_tol);
@@ -189,7 +214,7 @@ void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_ei
   }
   RunTestNew(a_summary_file, arma_mat, res, "armadillo", ak_size, ak_seed, ak_is_hermitian, ak_tol);
 #endif
-  std::vector<C> estimate;
+//  std::vector<C> estimate;
 #ifdef EIGEN
   {
     auto start = std::chrono::steady_clock::now();
@@ -219,6 +244,7 @@ void RunTest(std::ofstream& a_summary_file, [[maybe_unused]] std::ofstream& a_ei
     std::vector<double> error = GetApproximationError(estimate, res);
     PrintSummary(a_summary_file, prefix, error);
   }
+//#endif
 #endif
 }
 #endif

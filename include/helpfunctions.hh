@@ -32,6 +32,16 @@ IsComplex() {
 }
 
 template <bool Complex, class T>
+struct RealType {
+  typedef T type;
+};
+
+template <class T>
+struct RealType<true, T> {
+  typedef typename T::value_type type;
+};
+
+template <bool Complex, class T>
 struct EvType {
   typedef T type;
 };

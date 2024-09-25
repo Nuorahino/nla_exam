@@ -192,20 +192,36 @@ extern int ssteqr_(char*,               // Compz: "N" no eigenvalues
 //    );
 //}
 //
-//// reduce general matrix to upper Hessenberg
-//extern "C" {
-//extern int dgehrd_(
-//    int*,           // N: Order of the Matrix
-//    int*,           // ILO: default 1
-//    int*,           // IHI: default N
-//    double*,        // A: On entry Matrix, on exit upper Triangular Matrix below Hessenberg representation of Q with tau
-//    int*,           // LDA: Leading Dimension of A (N)
-//    double*,        // TAU: Scalar Factors of elementary reflectors (dim N-1)
-//    double*,        // WORK: dim (LWORK) WORK(1) returns optimal LWORK
-//    int*,           // LWORK: N * NB, NB is Blocksize
-//    int*            // INFO: 0 on Success, < 0 = -i, if ith argument is illegal
-//    );
-//}
+// Symmetric reduction to tridiagonal
+extern "C" {
+extern int dsytrd_(
+    char*,          // UPLO: 'U' if upper part is stored, 'L' if Lower part
+    int*,           // N: Order of the Matrix
+    double*,        // A: On entry Matrix, on exit upper Triangular Matrix below Hessenberg representation of Q with tau
+    int*,           // LDA: Leading Dimension of A (N)
+    double*,        // D: Double array of dimension N for diagonal entries
+    double*,        // E: Double array of dimension N - 1 for off-diagonal entries
+    double*,        // TAU: Scalar Factors of elementary reflectors (dim N-1)
+    double*,        // WORK: dim (LWORK) WORK(1) returns optimal LWORK
+    int*,           // LWORK: N * NB, NB is Blocksize
+    int*            // INFO: 0 on Success, < 0 = -i, if ith argument is illegal
+    );
+}
+
+// reduce general matrix to upper Hessenberg
+extern "C" {
+extern int dgehrd_(
+    int*,           // N: Order of the Matrix
+    int*,           // ILO: default 1
+    int*,           // IHI: default N
+    double*,        // A: On entry Matrix, on exit upper Triangular Matrix below Hessenberg representation of Q with tau
+    int*,           // LDA: Leading Dimension of A (N)
+    double*,        // TAU: Scalar Factors of elementary reflectors (dim N-1)
+    double*,        // WORK: dim (LWORK) WORK(1) returns optimal LWORK
+    int*,           // LWORK: N * NB, NB is Blocksize
+    int*            // INFO: 0 on Success, < 0 = -i, if ith argument is illegal
+    );
+}
 
 // Generate the Givens Rotation in real single precision
 extern "C" {
@@ -366,47 +382,47 @@ extern int zlartg_(
 //// lar2v apply vector of plane rotations to 2x2 matrix from both sides to symmetric/Hermitian matrix (Interesting!)
 //
 //
-//// Generate the Householder Reflection in double precision
-//extern "C" {
-//extern int dlarfg_(             // add a (p) add the end, to make beta positive
-//  int*,                         // size n
-//  double*,                      // first entry (alpha), Output beta
-//  double*,                      // rest of the vector (size n-1), on output last n-1 entries of  Householder
-//  int*,                         // increment of x ????
-//  double*                       // Tau, H = I - tau (1, v) * (1, v)^T
-//  );
-//}
-//
-//extern "C" {
-//extern int slarfg_(             // add a (p) add the end, to make beta positive
-//  int*,                         // size n
-//  float*,                      // first entry (alpha), Output beta
-//  float*,                      // rest of the vector (size n-1), on output last n-1 entries of  Householder
-//  int*,                         // increment of x ????
-//  float*                       // Tau, H = I - tau (1, v) * (1, v)^T
-//  );
-//}
-//
-//extern "C" {
-//extern int zlarfg_(             // add a (p) add the end, to make beta positive
-//  int*,                         // size n
-//  std::complex<double>*,                      // first entry (alpha), Output beta
-//  std::complex<double>*,                      // rest of the vector (size n-1), on output last n-1 entries of  Householder
-//  int*,                         // increment of x ????
-//  std::complex<double>*                       // Tau, H = I - tau (1, v) * (1, v)^T
-//  );
-//}
-//
-//extern "C" {
-//extern int clarfg_(             // add a (p) add the end, to make beta positive
-//  int*,                         // size n
-//  std::complex<float>*,                      // first entry (alpha), Output beta
-//  std::complex<float>*,                      // rest of the vector (size n-1), on output last n-1 entries of  Householder
-//  int*,                         // increment of x ????
-//  std::complex<float>*                       // Tau, H = I - tau (1, v) * (1, v)^T
-//  );
-//}
-//
+// Generate the Householder Reflection in double precision
+extern "C" {
+extern int dlarfg_(             // add a (p) add the end, to make beta positive
+  int*,                         // size n
+  double*,                      // first entry (alpha), Output beta
+  double*,                      // rest of the vector (size n-1), on output last n-1 entries of  Householder
+  int*,                         // increment of x ????
+  double*                       // Tau, H = I - tau (1, v) * (1, v)^T
+  );
+}
+
+extern "C" {
+extern int slarfg_(             // add a (p) add the end, to make beta positive
+  int*,                         // size n
+  float*,                      // first entry (alpha), Output beta
+  float*,                      // rest of the vector (size n-1), on output last n-1 entries of  Householder
+  int*,                         // increment of x ????
+  float*                       // Tau, H = I - tau (1, v) * (1, v)^T
+  );
+}
+
+extern "C" {
+extern int zlarfg_(             // add a (p) add the end, to make beta positive
+  int*,                         // size n
+  std::complex<double>*,                      // first entry (alpha), Output beta
+  std::complex<double>*,                      // rest of the vector (size n-1), on output last n-1 entries of  Householder
+  int*,                         // increment of x ????
+  std::complex<double>*                       // Tau, H = I - tau (1, v) * (1, v)^T
+  );
+}
+
+extern "C" {
+extern int clarfg_(             // add a (p) add the end, to make beta positive
+  int*,                         // size n
+  std::complex<float>*,                      // first entry (alpha), Output beta
+  std::complex<float>*,                      // rest of the vector (size n-1), on output last n-1 entries of  Householder
+  int*,                         // increment of x ????
+  std::complex<float>*                       // Tau, H = I - tau (1, v) * (1, v)^T
+  );
+}
+
 //extern "C" {
 //extern int dlarf_(
 //  char*,                        // Side: 'L' or 'R'

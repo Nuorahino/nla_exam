@@ -67,6 +67,17 @@ MatrixType CreateStdRandom(const int ak_size,
   return A;
 }
 
+template<typename MatrixType>
+MatrixType CreateStdRandomComplex(const int ak_size,
+    const int ak_seed = std::time(nullptr)) {
+  std::srand(ak_seed);
+  MatrixType A(ak_size, ak_size);
+  for (auto& entry : A.reshaped()) {
+      entry = (std::rand() % 200) - 100 + ((std::rand() % 200) - 100)* 1j ;
+  }
+  return A;
+}
+
 
 template<typename MatrixType>
 MatrixType CreateStdRandomTridiagonal(const int ak_size,
