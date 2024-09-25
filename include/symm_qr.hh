@@ -46,7 +46,13 @@ GetHouseholderVector(const Eigen::MatrixBase<Derived> &ak_x, T &beta) {
   beta = w(Eigen::lastN(n - 1)).squaredNorm();
   // TODO (Georg): Better Criteria needed
   if (std::abs(beta) < std::numeric_limits<RT>::min()) {
-    w(0) = 1;
+    if constexpr (IsComplex<T>()) {
+      T eta = w(0).real() / std::abs(w(0).real()) * w.norm();
+      beta = (w(0) + eta) / eta;
+      w(0) = 1;
+    } else {
+      w(0) = 1;
+    }
   } else {
     //T s = std::sqrt(std::abs(w(0)) * std::abs(w(0)) + beta);
     if constexpr (IsComplex<T>()) {
@@ -58,12 +64,11 @@ GetHouseholderVector(const Eigen::MatrixBase<Derived> &ak_x, T &beta) {
       // s *= std::polar(1.0, std::arg(w(0)));  // Does not work for float and double at
       // the same time
     } else {
-      std::cout << "wrong path" << std::endl;
       T s = std::sqrt(std::abs(w(0)) * std::abs(w(0)) + beta);
       if (w(0) < 0) s *= -1;
+      w(0) = w(0) + s;
       beta += std::abs(w(0) * w(0));
       beta = T{2} / beta;
-      w(0) = w(0) + s;
     }
     //w(0) = w(0) + s;
   }
@@ -186,8 +191,8 @@ ApplyHouseholderLeft(const Eigen::MatrixBase<Derived2> &ak_w,
 
   // T beta = 2 / ak_w.squaredNorm();
   for (int i = 0; i < a_matrix.cols(); ++i) {
-//    T tmp = beta * (ak_w.dot(a_matrix(Eigen::all, i)));  // w.dot(A) = w.adjoint() * A
-    T tmp = std::conj(beta) * ak_w.dot(a_matrix(Eigen::all, i));  // w.dot(A) = w.adjoint() * A
+    T tmp = beta * (ak_w.dot(a_matrix(Eigen::all, i)));  // w.dot(A) = w.adjoint() * A
+    //T tmp = std::conj(beta) * ak_w.dot(a_matrix(Eigen::all, i));  // w.dot(A) = w.adjoint() * A
     matrix(Eigen::all, i) -= tmp * ak_w;
   }
   return;
@@ -215,45 +220,61 @@ HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
   typename Derived::Scalar beta;
   //for (int i = 0; i < matrix.rows() - 2; ++i) {
   for (int i = 0; i < matrix.rows() - 1; ++i) {
-    Eigen::Vector<typename Derived::Scalar, -1> w2;
-    //Eigen::Vector<typename Derived::Scalar, -1> w(n - i - 1);
     Eigen::Vector<typename Derived::Scalar, -1> w =
         GetHouseholderVector(matrix(Eigen::lastN(n - i - 1), i), beta);
-    std::cout << "beta new" << beta << std::endl;
-    std::cout << "w new" << w << std::endl;
-    std::tie(w2, beta) = get_householder<std::complex<double>>(matrix(Eigen::lastN(n - i - 1), i));
-    //std::tie(w2, beta) = get_householder<double>(matrix(Eigen::lastN(n - i - 1), i));
-//    w(0) = 1;
-//    w(Eigen::lastN(n - i - 2)) = w2;
-    std::cout << "beta lapack" << beta << std::endl;
-    std::cout << "w lapack" << w2 << std::endl;
-    //std::tie(w, beta) = get_householder<double>(matrix(Eigen::lastN(n - i - 1), i));
 
-    //Eigen::Vector<typename Derived::Scalar, -1> tmp(n - i);
-     ApplyHouseholderLeft(w, matrix(Eigen::lastN(n - i - 1), Eigen::lastN(n - i)), beta);
-     //ApplyHouseholderLeft(w, matrix(Eigen::lastN(n - i - 1), Eigen::lastN(n - i)));
-    //matrix(Eigen::lastN(n - i - 1), i) -= w;
-    //for (int j = i + 1; j < n; ++j) {
+//    ApplyHouseholderLeft(w, matrix(Eigen::lastN(n - i - 1), Eigen::lastN(n - i)), beta);
+//    ApplyHouseholderRight(w, matrix(Eigen::lastN(n - i), Eigen::lastN(n - i - 1)), beta);
+
+    // Version 2
+
+//    // Apply Left
 //    for (int j = i; j < n; ++j) {
-//      typename Derived::Scalar tmp = beta * w.dot(a_matrix(Eigen::lastN(n - i - 1), j));  // w.dot(A) = w.adjoint() * A
-//      //matrix(Eigen::lastN(n - i - 1), j) -= (tmp * w).eval();
-//      //tmp(j - i) = beta * w.dot(a_matrix(Eigen::lastN(n - i - 1), j));  // w.dot(A) = w.adjoint() * A
-//      //matrix(Eigen::lastN(n - i - 1), j) -= (tmp(j - i) * w).eval();
+//      typename Derived::Scalar tmp = std::conj(beta) * w.dot(a_matrix(Eigen::lastN(n - i - 1), j));  // w.dot(A) = w.adjoint() * A
+//      //typename Derived::Scalar tmp = beta * w.dot(a_matrix(Eigen::lastN(n - i - 1), j));  // w.dot(A) = w.adjoint() * A
 //      matrix(Eigen::lastN(n - i - 1), j) -= (tmp * w).eval();
 //    }
-    //double test = tmp(Eigen::lastN(n - i - 1)).dot(w) * beta;
-    //std::cout << "new tmp at 1" << tmp(Eigen::lastN(n - i - 1)) - test * w << std::endl;;
-   ApplyHouseholderRight(w, matrix(Eigen::lastN(n - i), Eigen::lastN(n - i - 1)), beta);
+//    // Apply Right
 //    Eigen::Vector<typename Derived::Scalar, -1> r_tmp = beta * matrix(Eigen::lastN(n - i), Eigen::lastN(n - i - 1)) * w;
-//    //Eigen::Vector<typename Derived::Scalar, -1> r_tmp = beta * matrix(Eigen::lastN(n - i - 1), Eigen::lastN(n - i - 1)) * w;
-//    //std::cout << "right tmp" << r_tmp << std::endl;
-//    //for(int j = i + 1; j < n; ++j) {
-//    //  matrix(i, j) -= w(j - i - 1);
-//    //}
 //    for(int j = 0; j < n - i - 1; ++j) {
-//      //matrix(Eigen::lastN(n - i - 1), i + 1 + j) -= r_tmp * w(j);
 //      matrix(Eigen::lastN(n - i), i + j + 1) -= r_tmp * w.adjoint()(j);
 //    }
+
+ //Version 3:
+    Eigen::Vector<typename Derived::Scalar, -1> tmp(n - i);
+    // Apply Left
+    for (int j = i; j < n; ++j) {
+      tmp(j - i) = std::conj(beta) * w.dot(a_matrix(Eigen::lastN(n - i - 1), j));  // w.dot(A) = w.adjoint() * A
+      //tmp(j - i) = beta * w.dot(a_matrix(Eigen::lastN(n - i - 1), j));  // w.dot(A) = w.adjoint() * A
+      matrix(Eigen::lastN(n - i - 1), j) -= (tmp(j - i) * w).eval();
+    }
+    std::complex<double> test = tmp(Eigen::lastN(n - i - 1)).conjugate().dot(w) * beta;
+    //double test = tmp(Eigen::lastN(n - i - 1)).conjugate().dot(w) * beta;
+    //double test = tmp(Eigen::lastN(n - i - 1)).dot(w) * beta;
+    // Apply Right
+    Eigen::Vector<typename Derived::Scalar, -1> r_tmp2 = beta * matrix(Eigen::lastN(n - i), Eigen::lastN(n - i - 1)) * w;
+    Eigen::Vector<typename Derived::Scalar, -1> r_tmp = tmp.conjugate();
+    //r_tmp(Eigen::lastN(n - i - 1)) = tmp(Eigen::lastN(n - i - 1)).conjugate() - test * w;
+    r_tmp(Eigen::lastN(n - i - 1)) -= test * w;
+    std::cout << "right tmp: " << r_tmp << std::endl;
+    std::cout << "right tmp2: " << r_tmp2 << std::endl;
+    for(int j = 0; j < n - i - 1; ++j) {
+      matrix(Eigen::lastN(n - i), i + j + 1) -= r_tmp * w.adjoint()(j);
+    }
+
+    //matrix(Eigen::lastN(n - i - 1), i) -= w;
+    //for (int j = i + 1; j < n; ++j) {
+      //typename Derived::Scalar tmp = std::conj(beta) * w.dot(a_matrix(Eigen::lastN(n - i - 1), j));  // w.dot(A) = w.adjoint() * A
+      //matrix(Eigen::lastN(n - i - 1), j) -= (tmp * w).eval();
+      //tmp(j - i) = beta * w.dot(a_matrix(Eigen::lastN(n - i - 1), j));  // w.dot(A) = w.adjoint() * A
+      //matrix(Eigen::lastN(n - i - 1), j) -= (tmp(j - i) * w).eval();
+    //std::cout << "new tmp at 1" << tmp(Eigen::lastN(n - i - 1)) - test * w << std::endl;;
+    //Eigen::Vector<typename Derived::Scalar, -1> r_tmp = beta * matrix(Eigen::lastN(n - i - 1), Eigen::lastN(n - i - 1)) * w;
+    //std::cout << "right tmp" << r_tmp << std::endl;
+    //for(int j = i + 1; j < n; ++j) {
+    //  matrix(i, j) -= w(j - i - 1);
+      //matrix(Eigen::lastN(n - i - 1), i + 1 + j) -= r_tmp * w(j);
+    //}
 
 
 //    matrix(Eigen::seqN(i + 2, n - i - 2), i) = MatrixType::Zero(n - i - 2, 1);
