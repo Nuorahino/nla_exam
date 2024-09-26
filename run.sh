@@ -1,32 +1,26 @@
 #!/bin/bash
-make O1 CPPFLAGS="-DSINGLE -DIMPLICIT -DHALF -DFULL" BASEVERSION=10
-for i in $(seq 1 20);
+
+cd build/
+variants="-DONE_VEC -DTWO_VEC -DNESTED -DWRAPPED -DARMADILLO -DBLAZE -DLAPACK -DEIGEN"
+#variants="-DONE_VEC -DTWO_VEC -DNESTED -DWRAPPED -DBLAZE -DEIGEN"
+#variants="-DONE_VEC -DTWO_VEC -DNESTED -DWRAPPED -DARMADILLO"
+compiler="-msse -msse2 -mavx -mavx2 -O3"
+
+cmake ./ -DMY_FLAGS="-DFULL -DREAL_SYMM -DNDEBUG -DUSELAPACK ${variants} ${compiler}"
+#cmake ./ -DMY_FLAGS="-DFULL -DLONGREAL_SYMM -DFLOAT_SYMM -DNDEBUG -DUSELAPACK ${variants} ${compiler}"
+#cmake ./ -DMY_FLAGS="-DFULL -DLONGREAL_SYMM -DNDEBUG ${variants} ${compiler}"
+#cmake ./ -DMY_FLAGS="-DFULL -DREAL_SYMM -DNDEBUG ${variants} ${compiler}"
+make -B evaluate
+for tol in "1e-8" "1e-11" "1e-14"
 do
-  echo $i
-    #./build/O1 1 500 $i > a/test_eigen_multiple_runs_$i
-    ./build/O1 1 500 $i
+  echo "tol $tol"
+  for seed in {1..10}
+  do
+    echo "seed $seed"
+    echo "compiler options $compiler"
+    echo $(date +%T)
+    ./evaluation/evaluate 1 1000 $seed $tol
+  done
 done
-echo "Implicit done"
-make O1 CPPFLAGS="-DSINGLE" BASEVERSION=20
-for i in $(seq 1 20);
-do
-  echo $i
-    #./build/O1 1 500 $i > a/test_eigen_multiple_runs_$i
-    ./build/O1 1 500 $i
-done
-echo "Single done"
-make O1 BASEVERSION=30
-for i in $(seq 1 20);
-do
-  echo $i
-    #./build/O1 1 500 $i > a/test_eigen_multiple_runs_$i
-    ./build/O1 1 500 $i
-done
-echo "Double done"
-make O1 CPPFLAGS="-DEIGEN -DHALF" BASEVERSION=99
-for i in $(seq 1 20);
-do
-  echo $i
-    ./build/O1 1 500 $i > a/test_eigen_func_runs_$i
-done
-echo "All done"
+
+cd ../
