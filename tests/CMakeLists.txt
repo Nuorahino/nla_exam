@@ -27,11 +27,5 @@ target_link_libraries(test_similiarity_transform PRIVATE Catch2::Catch2WithMain)
 target_link_libraries(test_similiarity_transform PRIVATE easy_profiler)
 target_link_libraries(test_similiarity_transform PRIVATE lapack)
 
-add_executable(test_benchmarks test_benchmarks.cpp)
-target_link_libraries(test_benchmarks PRIVATE Catch2::Catch2WithMain)
-#target_link_libraries(test_benchmarks PRIVATE QR)
-target_link_libraries(test_benchmarks PRIVATE easy_profiler)
-target_link_libraries(test_benchmarks PRIVATE lapack)
-
 add_executable(test_tests test_tests.cpp)
 target_link_libraries(test_tests PRIVATE Catch2::Catch2WithMain)
