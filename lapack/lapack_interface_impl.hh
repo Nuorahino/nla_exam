@@ -33,91 +33,100 @@ CalculateTridiagonalEigenvalues(std::vector<DataType> diag, std::vector<DataType
   return std::vector<std::complex<DataType>>{D, D + n};
 }
 
-//template<class DataType, class Derived>
-//std::tuple<Eigen::Matrix<DataType, -1, -1>, Eigen::Vector<typename ComplexDataType<DataType>::type, -1>>
-//CalculateGeneralEigenvalues(const Eigen::MatrixBase<Derived>& ak_matrix, const bool calcEigenvectors = true) {
-//  Eigen::Matrix<DataType, -1, -1> H = ak_matrix;
-//
-//  // LAPACK Variables
-//  char JOBVL = 'N';
-//  char JOBVR = 'N';
-//  if (calcEigenvectors) {
-//    JOBVR = 'V';
-//  }
-//  int N = H.rows();
-//  DataType* A = H.data();
-//  int LDA = N;
-//  DataType* WR = new DataType[N];
-//  DataType* WI = new DataType[N];
-//  int LDVL = 1;
-//  DataType* VL = new DataType[LDVL * N];
-//  int LDVR = N;
-//  DataType* VR = new DataType[LDVR * N];
-//  int LWORK = 64 * N;
-//  DataType* WORK = new DataType[LWORK];
-//  typename RealDataType<DataType>::type* RWORK = new typename RealDataType<DataType>::type[2 * N];
-//  int INFO;
-//
-//  if constexpr (std::is_same<DataType, double>::value) {
-//    dgeev_(&JOBVL, &JOBVR, &N, A, &LDA, WR, WI, VL, &LDVL, VR, &LDVR, WORK, &LWORK, &INFO);
-//  } else if constexpr (std::is_same<DataType, float>::value) {
-//    sgeev_(&JOBVL, &JOBVR, &N, A, &LDA, WR, WI, VL, &LDVL, VR, &LDVR, WORK, &LWORK, &INFO);
-//  } else if constexpr (std::is_same<DataType, std::complex<float>>::value) {
-//    cgeev_(&JOBVL, &JOBVR, &N, A, &LDA, WR, VL, &LDVL, VR, &LDVR, WORK, &LWORK, RWORK, &INFO);
-//  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
-//    zgeev_(&JOBVL, &JOBVR, &N, A, &LDA, WR, VL, &LDVL, VR, &LDVR, WORK, &LWORK, RWORK, &INFO);
-//  }
-//
-//  Eigen::Vector<typename ComplexDataType<DataType>::type, -1> eval(N);
-//  if constexpr (IsComplex<DataType>()) {
-//    for(int i = 0; i < N; ++i) {
-//      eval(i) = WR[i];
-//    }
-//  } else {
-//    for(int i = 0; i < N; ++i) {
-//      eval.real()(i) = WR[i];
-//      eval.imag()(i) = WI[i];
-//    }
-//  }
-//  // Overrite H with the eigenvectors
-//  for(int i = 0; i < N; ++i) {
-//    for(int ii = 0; ii < N; ++ii) {
-//      H(i, ii) = VR[i*N + ii];
-//    }
-//  }
-//
-//  return std::forward_as_tuple(H, eval);
-//}
+template<class DataType, class Derived>
+std::tuple<Eigen::Matrix<DataType, -1, -1>, Eigen::Vector<typename ComplexDataType<DataType>::type, -1>>
+CalculateGeneralEigenvalues(const Eigen::MatrixBase<Derived>& ak_matrix, const bool calcEigenvectors = false) {
+  Eigen::Matrix<DataType, -1, -1> H = ak_matrix;
 
-template<class Derived, class Mat = Eigen::MatrixXd>
+  // LAPACK Variables
+  char JOBVL = 'N';
+  char JOBVR = 'N';
+  if (calcEigenvectors) {
+    JOBVR = 'V';
+  }
+  int N = H.rows();
+  DataType* A = H.data();
+  int LDA = N;
+  DataType* WR = new DataType[N];
+  DataType* WI = new DataType[N];
+  int LDVL = 1;
+  DataType* VL = new DataType[LDVL * N];
+  int LDVR = N;
+  DataType* VR = new DataType[LDVR * N];
+  int LWORK = 64 * N;
+  DataType* WORK = new DataType[LWORK];
+  typename RealDataType<DataType>::type* RWORK = new typename RealDataType<DataType>::type[2 * N];
+  int INFO;
+
+  if constexpr (std::is_same<DataType, double>::value) {
+    dgeev_(&JOBVL, &JOBVR, &N, A, &LDA, WR, WI, VL, &LDVL, VR, &LDVR, WORK, &LWORK, &INFO);
+  } else if constexpr (std::is_same<DataType, float>::value) {
+    sgeev_(&JOBVL, &JOBVR, &N, A, &LDA, WR, WI, VL, &LDVL, VR, &LDVR, WORK, &LWORK, &INFO);
+  } else if constexpr (std::is_same<DataType, std::complex<float>>::value) {
+    cgeev_(&JOBVL, &JOBVR, &N, A, &LDA, WR, VL, &LDVL, VR, &LDVR, WORK, &LWORK, RWORK, &INFO);
+  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
+    zgeev_(&JOBVL, &JOBVR, &N, A, &LDA, WR, VL, &LDVL, VR, &LDVR, WORK, &LWORK, RWORK, &INFO);
+  }
+
+  Eigen::Vector<typename ComplexDataType<DataType>::type, -1> eval(N);
+  if constexpr (IsComplex<DataType>()) {
+    for(int i = 0; i < N; ++i) {
+      eval(i) = WR[i];
+    }
+  } else {
+    for(int i = 0; i < N; ++i) {
+      eval.real()(i) = WR[i];
+      eval.imag()(i) = WI[i];
+    }
+  }
+  // Overrite H with the eigenvectors
+  for(int i = 0; i < N; ++i) {
+    for(int ii = 0; ii < N; ++ii) {
+      H(i, ii) = VR[i*N + ii];
+    }
+  }
+
+  return std::forward_as_tuple(H, eval);
+}
+
+template<class DataType, class Derived, class Mat = Eigen::Matrix<DataType, -1, -1>, class RMat = Eigen::Matrix<typename RealDataType<DataType>::type, -1, -1>>
 Mat CreateTridiagonal(const Eigen::MatrixBase<Derived>& ak_matrix) {
-  Mat H = ak_matrix;
+  typedef typename RealDataType<DataType>::type RDataType;
   Mat M = ak_matrix;
 
   // LAPACK Variables
   char UPLO = 'L';                  // Storage in Lower part of the matrix
   int N = ak_matrix.rows();         // Size of Matrix
-  double* A = M.data();             // Matrix
+  DataType* A = M.data();             // Matrix
   int LDA = N;                      // is square Matrix
-//  double* D = new double[N];        // Diagonal entries
-//  double* E = new double[N - 1];    // off-Diagonal entries
-  double* D = H.diagonal(0).data();        // Diagonal entries
-  double* E = H.diagonal(-1).data();    // off-Diagonal entries
-  double* TAU = new double[N-1];    // Output scalar factors of elementary reflections
+  RDataType* D = new RDataType[N];
+  RDataType* E = new RDataType[N-1];
+  DataType* TAU = new DataType[N-1];    // Output scalar factors of elementary reflections
   int LWORK = 64 * N;               // Blocksize times N, value currently chosen arbitrarily
-  double* WORK = new double[LWORK]; // Workspace
+  DataType* WORK = new DataType[LWORK]; // Workspace
   int INFO;                         // Output 0 on success
 
 
-  dsytrd_(&UPLO, &N, A, &LDA, D, E, TAU, WORK, &LWORK, &INFO);
-  std::cout << "INFO: " << INFO << std::endl;
+  if constexpr (std::is_same<DataType, double>::value) {
+    dsytrd_(&UPLO, &N, A, &LDA, D, E, TAU, WORK, &LWORK, &INFO);
+  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
+    zhetrd_(&UPLO, &N, A, &LDA, D, E, TAU, WORK, &LWORK, &INFO);
+  }
+
+  M = Mat::Zero(ak_matrix.rows(), ak_matrix.cols());
+  M(0, 0) = D[0];
+  for (int i = 1; i < N; ++i) {
+    M(i, i) = D[i];
+    M(i, i - 1) = E[i-1];
+    M(i - 1, i) = E[i-1];
+  }
 
   delete[] WORK;
   delete[] TAU;
-  return H;
+  return M;
 }
 
-template<class Derived, class Mat = Eigen::MatrixXd>
+template<class DataType, class Derived, class Mat = Eigen::Matrix<DataType, -1, -1>>
 Mat CreateHessenberg(const Eigen::MatrixBase<Derived>& ak_matrix) {
   Mat H = ak_matrix;
 
@@ -125,20 +134,35 @@ Mat CreateHessenberg(const Eigen::MatrixBase<Derived>& ak_matrix) {
   int N = ak_matrix.rows();         // Size of Matrix
   int ILO = 1;                      // default
   int IHI = N;                      // default
-  double* A = H.data();             // Matrix
+  DataType* A = H.data();             // Matrix
   int LDA = N;                      // is square Matrix
-  double* TAU = new double[N-1];    // Output scalar factors of elementary reflections
+  DataType* TAU = new DataType[N-1];    // Output scalar factors of elementary reflections
   int LWORK = 64 * N;               // Blocksize times N, value currently chosen arbitrarily
-  double* WORK = new double[LWORK]; // Workspace
+  DataType* WORK = new DataType[LWORK]; // Workspace
   int INFO;                         // Output 0 on success
 
+  if constexpr (std::is_same<DataType, double>::value) {
+    dgehrd_(&N, &ILO, &IHI, A, &LDA, TAU, WORK, &LWORK, &INFO);
+  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
+    zgehrd_(&N, &ILO, &IHI, A, &LDA, TAU, WORK, &LWORK, &INFO);
+  }
 
-  dgehrd_(&N, &ILO, &IHI, A, &LDA, TAU, WORK, &LWORK, &INFO);
-  std::cout << "INFO: " << INFO << std::endl;
-
+  for (int j = 0; j < N; ++j) {
+    for (int i = j + 2; i < N; ++i) {
+      H(i, j) = 0;
+    }
+  }
   delete[] WORK;
   delete[] TAU;
   return H;
+}
+
+template<bool Hermitian, class DataType, class Derived, class Mat = Eigen::Matrix<DataType, -1, -1>>
+Mat CreateHessenberg(const Eigen::MatrixBase<Derived>& ak_matrix) {
+  if constexpr (Hermitian) {
+    return CreateTridiagonal<DataType>(ak_matrix);
+  }
+  return CreateHessenberg<DataType>(ak_matrix);
 }
 
 //template<class Derived, class Mat = Eigen::MatrixXd>

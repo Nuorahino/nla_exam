@@ -26,74 +26,75 @@ extern int ssteqr_(char*,               // Compz: "N" no eigenvalues
 }
 
 
-//extern int sgeev_(char*,                // jobvl: 'V' left eigenvectors are computed, 'V' not
-//                  char*,                // jobvr: 'V' right eigenvectors are computed, 'V' not
-//                  int*,                 // N: order of the matrix
-//                  float*,               // A: array of dim (LDA, N), at the end overwritten
-//                  int*,                 // LDA: Leading dimension of A >= max{1, N}
-//                  float*,               // WR: Array of dim N, output Real part of computed eigenvalues
-//                  float*,               // WI: Array of dim N, output Real part of computed eigenvalues
-//                  float*,               // vl: Array of dim (LDVL, N), if JOBVL = 'V' ourput left eigenvectors
-//                  int*,                 // LDVL: >= 1, if JOBVL, then >= N
-//                  float*,               // vr: Array of dim (LDVR, N), if JOBVR = 'V' ourput right eigenvectors
-//                  int*,                 // LDVR: >= 1, if JOBVR, then >= N
-//                  float*,               // WORK: Array of dim (Max{1, LWORK}), if INFO = 0, WORK(1) is optimal LWORK
-//                  int*,                 // LWORK: Dimension of WORk array, >= 4N generally chosen larger for performance
-//                  int*);                // INFO: 0(success), -i < 0 (i-th argmuent has illegal value), i > 0(computed till i)
-//}
-//
-//extern "C" {
-//extern int dgeev_(char*,                // jobvl: 'V' left eigenvectors are computed, 'V' not
-//                  char*,                // jobvr: 'V' right eigenvectors are computed, 'V' not
-//                  int*,                 // N: order of the matrix
-//                  double*,              // A: array of dim (LDA, N), at the end overwritten
-//                  int*,                 // LDA: Leading dimension of A >= max{1, N}
-//                  double*,              // WR: Array of dim N, output Real part of computed eigenvalues
-//                  double*,              // WI: Array of dim N, output Real part of computed eigenvalues
-//                  double*,              // vl: Array of dim (LDVL, N), if JOBVL = 'V' ourput left eigenvectors
-//                  int*,                 // LDVL: >= 1, if JOBVL, then >= N
-//                  double*,              // vr: Array of dim (LDVR, N), if JOBVR = 'V' ourput right eigenvectors
-//                  int*,                 // LDVR: >= 1, if JOBVR, then >= N
-//                  double*,              // WORK: Array of dim (Max{1, LWORK}), if INFO = 0, WORK(1) is optimal LWORK
-//                  int*,                 // LWORK: Dimension of WORk array, >= 4N generally chosen larger for performance
-//                  int*);                // INFO: 0(success), -i < 0 (i-th argmuent has illegal value), i > 0(computed till i)
-//}
-//
-//extern "C" {
-//extern int cgeev_(char*,                // jobvl: 'V' left eigenvectors are computed, 'V' not
-//                  char*,                // jobvr: 'V' right eigenvectors are computed, 'V' not
-//                  int*,                 // N: order of the matrix
-//                  std::complex<float>*, // A: array of dim (LDA, N), at the end overwritten
-//                  int*,                 // LDA: Leading dimension of A >= max{1, N}
-//                  std::complex<float>*, // W: Array of dim N, output computed eigenvalues
-//                  std::complex<float>*, // vl: Array of dim (LDVL, N), if JOBVL = 'V' ourput left eigenvectors
-//                  int*,                 // LDVL: >= 1, if JOBVL, then >= N
-//                  std::complex<float>*, // vr: Array of dim (LDVR, N), if JOBVR = 'V' ourput right eigenvectors
-//                  int*,                 // LDVR: >= 1, if JOBVR, then >= N
-//                  std::complex<float>*, // WORK: Array of dim (Max{1, LWORK}), if INFO = 0, WORK(1) is optimal LWORK
-//                  int*,                 // LWORK: Dimension of WORk array, >= 4N generally chosen larger for performance
-//                  float*,               // RWORK: Array of dim (2 * N)
-//                  int*);                // INFO: 0(success), -i < 0 (i-th argmuent has illegal value), i > 0(computed till i)
-//}
-//
-//extern "C" {
-//extern int zgeev_(char*,                // jobvl: 'V' left eigenvectors are computed, 'V' not
-//                  char*,                // jobvr: 'V' right eigenvectors are computed, 'V' not
-//                  int*,                 // N: order of the matrix
-//                  std::complex<double>*,// A: array of dim (LDA, N), at the end overwritten
-//                  int*,                 // LDA: Leading dimension of A >= max{1, N}
-//                  std::complex<double>*,// W: Array of dim N, output computed eigenvalues
-//                  std::complex<double>*,// vl: Array of dim (LDVL, N), if JOBVL = 'V' ourput left eigenvectors
-//                  int*,                 // LDVL: >= 1, if JOBVL, then >= N
-//                  std::complex<double>*,// vr: Array of dim (LDVR, N), if JOBVR = 'V' ourput right eigenvectors
-//                  int*,                 // LDVR: >= 1, if JOBVR, then >= N
-//                  std::complex<double>*,// WORK: Array of dim (Max{1, LWORK}), if INFO = 0, WORK(1) is optimal LWORK
-//                  int*,                 // LWORK: Dimension of WORk array, >= 4N generally chosen larger for performance
-//                  double*,              // RWORK: Array of dim (2 * N)
-//                  int*);                // INFO: 0(success), -i < 0 (i-th argmuent has illegal value), i > 0(computed till i)
-//}
-//
-//
+extern "C" {
+extern int sgeev_(char*,                // jobvl: 'V' left eigenvectors are computed, 'V' not
+                  char*,                // jobvr: 'V' right eigenvectors are computed, 'V' not
+                  int*,                 // N: order of the matrix
+                  float*,               // A: array of dim (LDA, N), at the end overwritten
+                  int*,                 // LDA: Leading dimension of A >= max{1, N}
+                  float*,               // WR: Array of dim N, output Real part of computed eigenvalues
+                  float*,               // WI: Array of dim N, output Real part of computed eigenvalues
+                  float*,               // vl: Array of dim (LDVL, N), if JOBVL = 'V' ourput left eigenvectors
+                  int*,                 // LDVL: >= 1, if JOBVL, then >= N
+                  float*,               // vr: Array of dim (LDVR, N), if JOBVR = 'V' ourput right eigenvectors
+                  int*,                 // LDVR: >= 1, if JOBVR, then >= N
+                  float*,               // WORK: Array of dim (Max{1, LWORK}), if INFO = 0, WORK(1) is optimal LWORK
+                  int*,                 // LWORK: Dimension of WORk array, >= 4N generally chosen larger for performance
+                  int*);                // INFO: 0(success), -i < 0 (i-th argmuent has illegal value), i > 0(computed till i)
+}
+
+extern "C" {
+extern int dgeev_(char*,                // jobvl: 'V' left eigenvectors are computed, 'V' not
+                  char*,                // jobvr: 'V' right eigenvectors are computed, 'V' not
+                  int*,                 // N: order of the matrix
+                  double*,              // A: array of dim (LDA, N), at the end overwritten
+                  int*,                 // LDA: Leading dimension of A >= max{1, N}
+                  double*,              // WR: Array of dim N, output Real part of computed eigenvalues
+                  double*,              // WI: Array of dim N, output Real part of computed eigenvalues
+                  double*,              // vl: Array of dim (LDVL, N), if JOBVL = 'V' ourput left eigenvectors
+                  int*,                 // LDVL: >= 1, if JOBVL, then >= N
+                  double*,              // vr: Array of dim (LDVR, N), if JOBVR = 'V' ourput right eigenvectors
+                  int*,                 // LDVR: >= 1, if JOBVR, then >= N
+                  double*,              // WORK: Array of dim (Max{1, LWORK}), if INFO = 0, WORK(1) is optimal LWORK
+                  int*,                 // LWORK: Dimension of WORk array, >= 4N generally chosen larger for performance
+                  int*);                // INFO: 0(success), -i < 0 (i-th argmuent has illegal value), i > 0(computed till i)
+}
+
+extern "C" {
+extern int cgeev_(char*,                // jobvl: 'V' left eigenvectors are computed, 'V' not
+                  char*,                // jobvr: 'V' right eigenvectors are computed, 'V' not
+                  int*,                 // N: order of the matrix
+                  std::complex<float>*, // A: array of dim (LDA, N), at the end overwritten
+                  int*,                 // LDA: Leading dimension of A >= max{1, N}
+                  std::complex<float>*, // W: Array of dim N, output computed eigenvalues
+                  std::complex<float>*, // vl: Array of dim (LDVL, N), if JOBVL = 'V' ourput left eigenvectors
+                  int*,                 // LDVL: >= 1, if JOBVL, then >= N
+                  std::complex<float>*, // vr: Array of dim (LDVR, N), if JOBVR = 'V' ourput right eigenvectors
+                  int*,                 // LDVR: >= 1, if JOBVR, then >= N
+                  std::complex<float>*, // WORK: Array of dim (Max{1, LWORK}), if INFO = 0, WORK(1) is optimal LWORK
+                  int*,                 // LWORK: Dimension of WORk array, >= 4N generally chosen larger for performance
+                  float*,               // RWORK: Array of dim (2 * N)
+                  int*);                // INFO: 0(success), -i < 0 (i-th argmuent has illegal value), i > 0(computed till i)
+}
+
+extern "C" {
+extern int zgeev_(char*,                // jobvl: 'V' left eigenvectors are computed, 'V' not
+                  char*,                // jobvr: 'V' right eigenvectors are computed, 'V' not
+                  int*,                 // N: order of the matrix
+                  std::complex<double>*,// A: array of dim (LDA, N), at the end overwritten
+                  int*,                 // LDA: Leading dimension of A >= max{1, N}
+                  std::complex<double>*,// W: Array of dim N, output computed eigenvalues
+                  std::complex<double>*,// vl: Array of dim (LDVL, N), if JOBVL = 'V' ourput left eigenvectors
+                  int*,                 // LDVL: >= 1, if JOBVL, then >= N
+                  std::complex<double>*,// vr: Array of dim (LDVR, N), if JOBVR = 'V' ourput right eigenvectors
+                  int*,                 // LDVR: >= 1, if JOBVR, then >= N
+                  std::complex<double>*,// WORK: Array of dim (Max{1, LWORK}), if INFO = 0, WORK(1) is optimal LWORK
+                  int*,                 // LWORK: Dimension of WORk array, >= 4N generally chosen larger for performance
+                  double*,              // RWORK: Array of dim (2 * N)
+                  int*);                // INFO: 0(success), -i < 0 (i-th argmuent has illegal value), i > 0(computed till i)
+}
+
+
 //// Symmetric Eigenvalue solver
 //extern "C" {
 //extern int dgees_(char*,
@@ -207,6 +208,20 @@ extern int dsytrd_(
     int*            // INFO: 0 on Success, < 0 = -i, if ith argument is illegal
     );
 }
+extern "C" {
+extern int zhetrd_(
+    char*,          // UPLO: 'U' if upper part is stored, 'L' if Lower part
+    int*,           // N: Order of the Matrix
+    std::complex<double>*,        // A: On entry Matrix, on exit upper Triangular Matrix below Hessenberg representation of Q with tau
+    int*,           // LDA: Leading Dimension of A (N)
+    double*,        // D: Double array of dimension N for diagonal entries
+    double*,        // E: Double array of dimension N - 1 for off-diagonal entries
+    std::complex<double>*,        // TAU: Scalar Factors of elementary reflectors (dim N-1)
+    std::complex<double>*,        // WORK: dim (LWORK) WORK(1) returns optimal LWORK
+    int*,           // LWORK: N * NB, NB is Blocksize
+    int*            // INFO: 0 on Success, < 0 = -i, if ith argument is illegal
+    );
+}
 
 // reduce general matrix to upper Hessenberg
 extern "C" {
@@ -218,6 +233,19 @@ extern int dgehrd_(
     int*,           // LDA: Leading Dimension of A (N)
     double*,        // TAU: Scalar Factors of elementary reflectors (dim N-1)
     double*,        // WORK: dim (LWORK) WORK(1) returns optimal LWORK
+    int*,           // LWORK: N * NB, NB is Blocksize
+    int*            // INFO: 0 on Success, < 0 = -i, if ith argument is illegal
+    );
+}
+extern "C" {
+extern int zgehrd_(
+    int*,           // N: Order of the Matrix
+    int*,           // ILO: default 1
+    int*,           // IHI: default N
+    std::complex<double>*,        // A: On entry Matrix, on exit upper Triangular Matrix below Hessenberg representation of Q with tau
+    int*,           // LDA: Leading Dimension of A (N)
+    std::complex<double>*,        // TAU: Scalar Factors of elementary reflectors (dim N-1)
+    std::complex<double>*,        // WORK: dim (LWORK) WORK(1) returns optimal LWORK
     int*,           // LWORK: N * NB, NB is Blocksize
     int*            // INFO: 0 on Success, < 0 = -i, if ith argument is illegal
     );

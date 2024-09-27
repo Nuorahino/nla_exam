@@ -18,64 +18,9 @@
 
 #include "helpfunctions.hh"
 #include "symm_qr.hh"
+#include "new_qr.hh"
 
 namespace nla_exam {
-/* Compute the Householder Vector
- * Parameter:
- * - ak_x: Vector to transform to multiple of e1
- * - a_tol: double, under which the tail is considered 0
- * Return: Householder Vector
- */
-//template <class Derived, class T = typename Derived::Scalar>
-//Eigen::Vector<T, -1>
-//GetHouseholderVector(const Eigen::MatrixBase<Derived> &ak_x) {
-//  EASY_FUNCTION(profiler::colors::Red);
-//  Eigen::Vector<T, -1> w = ak_x;
-//  int64_t n = w.rows();
-//  T t = w(Eigen::lastN(n - 1)).squaredNorm();
-//  // TODO (Georg): Better Criteria needed
-//  if (std::abs(t) < std::numeric_limits<decltype(std::abs(t))>::min()) {
-//    w(0) = 1;
-//  } else {
-//    T s = std::sqrt(std::abs(w(0)) * std::abs(w(0)) + t);
-//    if constexpr (IsComplex<typename Derived::Scalar>()) {
-//      s *= w(0) / std::abs(w(0));  // Choise to avoid loss of significance
-//      // s *= std::polar(1.0, std::arg(w(0)));  // Does not work for float and double at
-//      // the same time
-//    } else {
-//      if (w(0) < 0) s *= -1;
-//    }
-//    w(0) = w(0) + s;
-//  }
-//  return w;
-//}
-//
-//
-//// TODO(Georg): Decide on if to include beta or not
-///* Apply a Householder Reflection from the right
-// * Parameter:
-// * - ak_w: Householder Vector
-// * - a_matrix: Matrix (Slice) to Transform
-// * Return: void
-// */
-//template <class Derived, class Derived2>
-//void
-//ApplyHouseholderRight(const Eigen::MatrixBase<Derived2> &ak_w,
-//                      const Eigen::MatrixBase<Derived> &a_matrix) {
-//  EASY_FUNCTION(profiler::colors::Red);
-//  typedef typename Derived::Scalar T;
-//  typedef Eigen::MatrixBase<Derived> MatrixType;
-//  MatrixType &matrix = const_cast<MatrixType &>(a_matrix);  // Const cast needed for eigen
-//
-//  T beta = 2 / ak_w.squaredNorm();
-//  for (int i = 0; i < a_matrix.rows(); ++i) {
-//    T tmp = beta * a_matrix(i, Eigen::all) * ak_w;
-//    matrix(i, Eigen::all) -= tmp * ak_w.adjoint();
-//  }
-//  return;
-//}
-//
-//
 //template <class Derived, class Derived2>
 //void
 //ApplyHouseholderRight(const Eigen::MatrixBase<Derived2> &ak_w,
@@ -90,30 +35,6 @@ namespace nla_exam {
 //  for (int i = 0; i < a_matrix.rows(); ++i) {
 //    T tmp = beta * a_matrix(i, Eigen::all) * ak_w;
 //    matrix(i, Eigen::all) -= tmp * ak_w.adjoint();
-//  }
-//  return;
-//}
-//
-//
-///* Apply a Householder Reflection from the left
-// * Parameter:
-// * - ak_w: Householder Vector
-// * - a_matrix: Matrix (Slice) to Transform
-// * Return: void
-// */
-//template <class Derived, class Derived2>
-//void
-//ApplyHouseholderLeft(const Eigen::MatrixBase<Derived2> &ak_w,
-//                     const Eigen::MatrixBase<Derived> &a_matrix) {
-//  EASY_FUNCTION(profiler::colors::Red);
-//  typedef typename Derived::Scalar T;
-//  typedef Eigen::MatrixBase<Derived> MatrixType;
-//  MatrixType &matrix = const_cast<MatrixType &>(a_matrix);  // Const cast needed for eigen
-//
-//  T beta = 2 / ak_w.squaredNorm();
-//  for (int i = 0; i < a_matrix.cols(); ++i) {
-//    T tmp = beta * ak_w.dot(a_matrix(Eigen::all, i));  // w.dot(A) = w.adjoint() * A
-//    matrix(Eigen::all, i) -= tmp * ak_w;
 //  }
 //  return;
 //}
@@ -136,6 +57,38 @@ namespace nla_exam {
 //  }
 //  return;
 //}
+template <class Derived, class Derived2>
+void
+ApplyHouseholderRight(const Eigen::MatrixBase<Derived2> &ak_w,
+                      const Eigen::MatrixBase<Derived> &a_matrix) {
+  typedef typename Derived::Scalar T;
+  typedef Eigen::MatrixBase<Derived> MatrixType;
+  MatrixType &matrix = const_cast<MatrixType &>(a_matrix);  // Const cast needed for eigen
+
+  T beta = 2 / ak_w.squaredNorm();
+  for (int i = 0; i < a_matrix.rows(); ++i) {
+    T tmp = beta * a_matrix(i, Eigen::all) * ak_w;
+    matrix(i, Eigen::all) -= tmp * ak_w.adjoint();
+  }
+  return;
+}
+
+
+template <class Derived, class Derived2>
+void
+ApplyHouseholderLeft(const Eigen::MatrixBase<Derived2> &ak_w,
+                     const Eigen::MatrixBase<Derived> &a_matrix) {
+  typedef typename Derived::Scalar T;
+  typedef Eigen::MatrixBase<Derived> MatrixType;
+  MatrixType &matrix = const_cast<MatrixType &>(a_matrix);  // Const cast needed for eigen
+
+   T beta = 2 / ak_w.squaredNorm();
+  for (int i = 0; i < a_matrix.cols(); ++i) {
+    T tmp = beta * ak_w.dot(a_matrix(Eigen::all, i));  // w.dot(A) = w.adjoint() * A
+    matrix(Eigen::all, i) -= tmp * ak_w;
+  }
+  return;
+}
 
 template <class Derived, class Derived2>
 void
@@ -168,49 +121,30 @@ HouseholderReflection(const Eigen::MatrixBase<Derived> &a_matrix,
  * - ak_is_hermitian: bool
  * Return: void
  */
-template <class Derived>
-void
-HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix,
-                         const bool ak_is_hermitian = false) {
+template <bool hermitian, bool colmajor, class Derived>
+std::enable_if_t<!hermitian && colmajor, void>
+HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix) {
   typedef Eigen::MatrixBase<Derived> MatrixType;
   MatrixType &matrix = const_cast<MatrixType &>(a_matrix);
   int64_t n = a_matrix.rows();
 
   typename Derived::Scalar beta;
-  for (int i = 0; i < matrix.rows() - 2; ++i) {
+  //for (int i = 0; i < matrix.rows() - 2; ++i) {
+  for (int i = 0; i < matrix.rows() - 1; ++i) {
+    //std::tie(w, beta) = get_householder<double>(matrix(Eigen::lastN(n - i - 1), i));
     Eigen::Vector<typename Derived::Scalar, -1> w =
         GetHouseholderVector(matrix(Eigen::lastN(n - i - 1), i), beta);
-    //std::tie(w, beta) = get_householder<double>(matrix(Eigen::lastN(n - i - 1), i));
+    ApplyHouseholderLeft(w, matrix(Eigen::lastN(n - i - 1), Eigen::seq(i, n - 1)), beta);
+    ApplyHouseholderRight(w, matrix(Eigen::all, Eigen::lastN(n - i - 1)), beta);
 
+//    Eigen::Vector<typename Derived::Scalar, -1> w =
+//        GetHouseholderVector(matrix(Eigen::lastN(n - i - 1), i));
+//    ApplyHouseholderLeft(w, matrix(Eigen::lastN(n - i - 1), Eigen::seq(i, n - 1)));
+//    ApplyHouseholderRight(w, matrix(Eigen::all, Eigen::lastN(n - i - 1)));
 
-    // Apply Householder Left
-//  for (int j = i; j < n; ++j) {
-//    typename Derived::Scalar tmp = beta * w.dot(a_matrix(Eigen::lastN(n - i - 1), j));  // w.dot(A) = w.adjoint() * A
-//    matrix(Eigen::lastN(n - i - 1), j) -= (tmp * w).eval();
-//  }
-//
-//    // Apply Householder Right
-//    Eigen::Vector<typename Derived::Scalar, -1> r_tmp = beta * matrix(Eigen::all, Eigen::lastN(n - i - 1)) * w;
-//    for(int j = 0; j < n - i - 1; ++j) {
-//      matrix(Eigen::lastN(n - i), i + 1 + j) -= r_tmp * w(j);
-//    }
-
-    ApplyHouseholderLeft(w, matrix(Eigen::lastN(n - i - 1), Eigen::seq(i, n - 1)));
-    ApplyHouseholderRight(w, matrix(Eigen::all, Eigen::lastN(n - i - 1)));
+//    std::cout << "i = " << i << std::endl;
+//    std::cout << matrix << std::endl;
     matrix(Eigen::seqN(i + 2, n - i - 2), i) = MatrixType::Zero(n - i - 2, 1);
-//    if (ak_is_hermitian) {
-//      matrix(i, Eigen::seqN(i + 2, n - i - 2)) = MatrixType::Zero(1, n - i - 2);
-//    }
-  }
-  if constexpr (IsComplex<typename Derived::Scalar>()) {
-    // Transform complex Hermitian Matrix to a Real Tridiagonal Matrix
-//    if (ak_is_hermitian) {
-//      for (int i = 1; i < a_matrix.rows(); ++i) {
-//        // TODO (Georg): find condition for good sign
-//        matrix(i - 1, i) = std::abs(a_matrix(i - 1, i));
-//        matrix(i, i - 1) = std::abs(a_matrix(i, i - 1));
-//      }
-//    }
   }
   return;
 }
