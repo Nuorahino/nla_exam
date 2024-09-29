@@ -150,6 +150,33 @@ HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix) {
     }
 
 #else
+#ifdef VERSION4
+ //Version 4:
+Eigen::Vector<typename Derived::Scalar, -1> tmp(n - i);
+    //Eigen::Vector<typename Derived::Scalar, -1> tmp;
+    if constexpr (IsComplex<typename Derived::Scalar>()) {
+      tmp = std::conj(beta) * w.adjoint() * (a_matrix(Eigen::lastN(n - i - 1), Eigen::lastN(n - i)));
+    } else {
+      tmp = beta * w.transpose() * (a_matrix(Eigen::lastN(n - i - 1), Eigen::lastN(n - i)));
+    }
+
+    typename Derived::Scalar test;
+    if constexpr (IsComplex<typename Derived::Scalar>()) {
+      test = tmp(Eigen::lastN(n - i - 1)).conjugate().dot(w) * beta;
+    } else {
+      test = tmp(Eigen::lastN(n - i - 1)).dot(w) * beta;
+    }
+    // Apply both
+    Eigen::Vector<typename Derived::Scalar, -1> r_tmp = tmp.conjugate();
+    r_tmp(Eigen::lastN(n - i - 1)) -= test * w;
+    matrix(Eigen::lastN(n - i - 1), i) -= (tmp(0) * w).eval();
+    for(int j = 0; j < n - i - 1; ++j) {
+      matrix(Eigen::lastN(n - i), i + j + 1) -= r_tmp * w.adjoint()(j);
+      matrix(Eigen::lastN(n - i - 1), i + j + 1) -= (tmp(j + 1) * w).eval();
+    }
+
+#else
+
  //Version 3:
     Eigen::Vector<typename Derived::Scalar, -1> tmp(n - i);
     // Apply Left
@@ -161,6 +188,7 @@ HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix) {
       }
       matrix(Eigen::lastN(n - i - 1), j) -= (tmp(j - i) * w).eval();
     }
+
     typename Derived::Scalar test;
     if constexpr (IsComplex<typename Derived::Scalar>()) {
       test = tmp(Eigen::lastN(n - i - 1)).conjugate().dot(w) * beta;
@@ -174,6 +202,7 @@ HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix) {
     for(int j = 0; j < n - i - 1; ++j) {
       matrix(Eigen::lastN(n - i), i + j + 1) -= r_tmp * w.adjoint()(j);
     }
+#endif
 #endif
 #endif
 

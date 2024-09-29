@@ -142,8 +142,6 @@ HessenbergTransformation(const Eigen::MatrixBase<Derived> &a_matrix) {
 //    ApplyHouseholderLeft(w, matrix(Eigen::lastN(n - i - 1), Eigen::seq(i, n - 1)));
 //    ApplyHouseholderRight(w, matrix(Eigen::all, Eigen::lastN(n - i - 1)));
 
-//    std::cout << "i = " << i << std::endl;
-//    std::cout << matrix << std::endl;
     matrix(Eigen::seqN(i + 2, n - i - 2), i) = MatrixType::Zero(n - i - 2, 1);
   }
   return;

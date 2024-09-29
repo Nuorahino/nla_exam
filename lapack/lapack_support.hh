@@ -223,6 +223,35 @@ extern int zhetrd_(
     );
 }
 
+extern "C" {
+extern int dsyev_(
+    char*,          // JOBZ: 'N' Compute eigenvalues only
+    char*,          // UPLO: 'U' Upper triangle of A is stored
+    int*,           // N: Order of the Matrix
+    double*,        // A: On entry Matrix, on exit upper Triangular Matrix below Hessenberg representation of Q with tau
+    int*,           // LDA: Leading Dimension of A (N)
+    double*,        // W: Array of dimension (N), on exit eigenvalues (in ascending order)
+    double*,        // WORK: dim (LWORK) WORK(1) returns optimal LWORK
+    int*,           // LWORK: N * NB, NB is Blocksize
+    double*,        // RWORK: double precision array of dim 3N - 2
+    int*            // INFO: 0 on Success, < 0 = -i, if ith argument is illegal
+    );
+}
+extern "C" {
+extern int zheev_(
+    char*,          // JOBZ: 'N' Compute eigenvalues only
+    char*,          // UPLO: 'U' Upper triangle of A is stored
+    int*,           // N: Order of the Matrix
+    std::complex<double>*,        // A: On entry Matrix, on exit upper Triangular Matrix below Hessenberg representation of Q with tau
+    int*,           // LDA: Leading Dimension of A (N)
+    double*,        // W: Array of dimension (N), on exit eigenvalues (in ascending order)
+    std::complex<double>*,        // WORK: dim (LWORK) WORK(1) returns optimal LWORK
+    int*,           // LWORK: N * NB, NB is Blocksize
+    double*,        // RWORK: double precision array of dim 3N - 2
+    int*            // INFO: 0 on Success, < 0 = -i, if ith argument is illegal
+    );
+}
+
 // reduce general matrix to upper Hessenberg
 extern "C" {
 extern int dgehrd_(

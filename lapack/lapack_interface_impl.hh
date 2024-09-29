@@ -89,6 +89,55 @@ CalculateGeneralEigenvalues(const Eigen::MatrixBase<Derived>& ak_matrix, const b
   return std::forward_as_tuple(H, eval);
 }
 
+
+template<class DataType, class Derived>
+std::tuple<Eigen::Matrix<DataType, -1, -1>, Eigen::Vector<typename ComplexDataType<DataType>::type, -1>>
+CalculateHermitianEigenvalues(const Eigen::MatrixBase<Derived>& ak_matrix, const bool calcEigenvectors = false) {
+  Eigen::Matrix<DataType, -1, -1> H = ak_matrix;
+  typedef typename RealDataType<DataType>::type RDataType;
+  typedef typename ComplexDataType<DataType>::type CDataType;
+
+  // LAPACK Variables
+  char JOBZ = 'N';
+  if (calcEigenvectors) {
+    JOBZ = 'V';
+  }
+  char UPLO = 'U';
+  int N = H.rows();
+  DataType* A = H.data();
+  int LDA = N;
+  RDataType* W = new RDataType[N];
+  int LWORK = 64 * N;
+  DataType* WORK = new DataType[LWORK];
+  RDataType* RWORK = new RDataType[3 * N - 2];
+  int INFO;
+
+  if constexpr (std::is_same<DataType, double>::value) {
+    dsyev_(&JOBZ, &UPLO, &N, A, &LDA, W, WORK, &LWORK, RWORK, &INFO);
+  } else if constexpr (std::is_same<DataType, float>::value) {
+    //sgeev_(&JOBVL, &JOBVR, &N, A, &LDA, WR, WI, VL, &LDVL, VR, &LDVR, WORK, &LWORK, &INFO);
+  } else if constexpr (std::is_same<DataType, std::complex<float>>::value) {
+    //cgeev_(&JOBVL, &JOBVR, &N, A, &LDA, WR, VL, &LDVL, VR, &LDVR, WORK, &LWORK, RWORK, &INFO);
+  } else if constexpr (std::is_same<DataType, std::complex<double>>::value) {
+    zheev_(&JOBZ, &UPLO, &N, A, &LDA, W, WORK, &LWORK, RWORK, &INFO);
+  }
+
+  Eigen::Vector<CDataType, -1> eval(N);
+  for(int i = 0; i < N; ++i) {
+    eval(i) = W[i];
+  }
+  return std::forward_as_tuple(H, eval);
+}
+template<bool hermitian, class DataType, class Derived>
+std::tuple<Eigen::Matrix<DataType, -1, -1>, Eigen::Vector<typename ComplexDataType<DataType>::type, -1>>
+CalculateGeneralEigenvalues(const Eigen::MatrixBase<Derived>& ak_matrix, const bool calcEigenvectors = false) {
+  if constexpr (hermitian) {
+    return CalculateHermitianEigenvalues<DataType>(ak_matrix, calcEigenvectors);
+  } else {
+    return CalculateGeneralEigenvalues<DataType>(ak_matrix, calcEigenvectors);
+  }
+}
+
 template<class DataType, class Derived, class Mat = Eigen::Matrix<DataType, -1, -1>, class RMat = Eigen::Matrix<typename RealDataType<DataType>::type, -1, -1>>
 Mat CreateTridiagonal(const Eigen::MatrixBase<Derived>& ak_matrix) {
   typedef typename RealDataType<DataType>::type RDataType;
