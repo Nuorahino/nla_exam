@@ -1,3 +1,5 @@
 testresults/*
 build/*
+other_builds/*
 a/*
+.cache/*

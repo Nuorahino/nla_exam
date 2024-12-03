@@ -1,5 +1,0 @@
-ComplexSchur.h
-l. 272: if (internal::isMuchSmallerThan(sum of diag elements, off diag element, NumTraits<RealScalar>::epsilon())) {
-  Set 0
-}
-return numext::abs(x) <= numext::abs(y) * prec

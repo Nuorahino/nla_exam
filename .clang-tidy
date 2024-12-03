@@ -1,0 +1,2 @@
+#Checks: '-*, google-*, bugprone-*'
+Checks: '-*, google-*, bugprone-*'
